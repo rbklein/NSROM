@@ -14,13 +14,13 @@
 //TO DO: CONVECTION JACOBIAN
 
 constexpr double PI = 3.14159265358979323846;
-constexpr bool COLLECT_DATA = true;
+constexpr bool COLLECT_DATA = false;
 
 int main() {
 
 	//FULL ORDER MODEL
 
-	mesh Mesh(100, 100, 2 * PI, 2 * PI);
+	mesh Mesh(400, 400, 1.0, 1.0); // 2 * PI, 2 * PI);
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -30,7 +30,7 @@ int main() {
 			B_CONDITION::PERIODIC_UL,
 			B_CONDITION::PERIODIC_LR,
 			POISSON_SOLVER::FOURIER,
-			0.001
+			0.00005
 		);
 	
 	ButcherTableau tableRK4({
@@ -43,11 +43,11 @@ int main() {
 
 	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(tableRK4);
 
-	double Time			= 8.0;
-	double dt			= 0.01;
+	double Time			= 2.0;
+	double dt			= 0.001;
 	double collectTime	= 8.0;
 
-	arma::Col<double> vel	= Solver.setupTestCase(TESTSUITE::SHEAR_LAYER_ROLL_UP);
+	arma::Col<double> vel	= Solver.setupTestCase(TESTSUITE::FREELY_DECAYING_2D_TURBULENCE);
 	arma::Col<double> p		= arma::zeros(0.0);
 
 	arma::Col<double> velInit = vel;
@@ -65,6 +65,7 @@ int main() {
 
 	//REDUCED ORDER MODEL
 
+	/*
 	int numModesPOD = 10;
 
 	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD);
@@ -86,6 +87,7 @@ int main() {
 	RomVelInterp.save("rom_vel.txt", arma::raw_ascii);
 
 	std::cout << "divergence: " << (Solver.M() * velr).max() << std::endl;
+	*/
 
 	return 0;
 }

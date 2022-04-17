@@ -64,7 +64,7 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		t = t + dt;
 
-		//std::cout << t << std::endl;
+		std::cout << t << std::endl;
 
 		//std::cout << Vo.max() << std::endl;
 
