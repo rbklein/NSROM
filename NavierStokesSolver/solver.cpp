@@ -47,11 +47,6 @@ void solver::setupPressurePoissonMatrix() {
 		//calculate poisson matrix
 		m_L = m_M * m_OmegaInv * m_G;
 
-		//set row to ones to make non-singular (sets non-weighted average pressure)
-		for (arma::uword i = 0; i < (m_mesh.getNumCellsX() * m_mesh.getNumCellsY()); ++i) {
-			m_L(0, i) = 1.0;
-		}
-
 		break;
 	case(POISSON_SOLVER::FOURIER):
 
@@ -70,8 +65,6 @@ void solver::setupPressurePoissonMatrix() {
 				m_Lhat(i, j) = (CellsP(i, j).dx * CellsP(i, j).dy) * -4.0 * ((1.0 / (CellsP(i, j).dx * CellsP(i, j).dx)) * sin(i * PI / m_mesh.getNumCellsX()) * sin(i * PI / m_mesh.getNumCellsX()) +
 					(1.0 / (CellsP(i, j).dy * CellsP(i, j).dy)) * sin(j * PI / m_mesh.getNumCellsY()) * sin(j * PI / m_mesh.getNumCellsY())) + 0.0i; 
 
-				//m_Lhat(i, j) =  - 4.0 * (sin(j * PI / m_mesh.getNumCellsX()) * sin(j * PI / m_mesh.getNumCellsX()) + sin(i * PI / m_mesh.getNumCellsY()) * sin(i * PI / m_mesh.getNumCellsY())) + 0.0i;
-
 			}
 		}
 
@@ -84,10 +77,15 @@ void solver::setupPressurePoissonMatrix() {
 
 arma::Col<double> solver::poissonSolve(const arma::Col<double>& MV) const {
 
+	//find a way to not have to initialize this all the time
+	arma::superlu_opts opts;
+	
 	switch (m_pSolver) {
 	case(POISSON_SOLVER::DIRECT):
 
-		return arma::spsolve(m_L, MV);
+		opts.allow_ugly = true;
+
+		return arma::spsolve(m_L, MV, "superlu", opts);
 
 		break;
 	case(POISSON_SOLVER::FOURIER):
@@ -122,9 +120,9 @@ arma::Col<double> solver::interpolateVelocity(const arma::Col<double>& vel) {
 		for (arma::uword j = 0; j < m_mesh.getNumCellsX(); ++j) {
 
 			if (i != (m_mesh.getNumCellsY() - 1))
-				velInterp(CellsP(i, j).vectorIndex + num) = 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(i + 1, j).vectorIndex));
+				velInterp(CellsP(i, j).vectorIndex + num) = 0.0 * 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(i + 1, j).vectorIndex));
 			else
-				velInterp(CellsP(i, j).vectorIndex + num) = 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(0, j).vectorIndex));
+				velInterp(CellsP(i, j).vectorIndex + num) = 0.0 * 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(0, j).vectorIndex));
 
 			if (j != (m_mesh.getNumCellsX() - 1))
 				velInterp(CellsP(i, j).vectorIndex) = 0.5 * (vel(CellsU(i, j).vectorIndex) + vel(CellsU(i, j + 1).vectorIndex));

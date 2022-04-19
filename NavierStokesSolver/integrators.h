@@ -36,11 +36,11 @@ struct ButcherTableau {
 	//a's
 	std::vector<std::vector<double>> A;
 
-	//c's
-	std::vector<double> c;
-
 	//b's
 	std::vector<double> b;
+
+	//c's
+	std::vector<double> c;
 
 };
 

@@ -24,7 +24,7 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		Us.push_back(Vo);
 
-		for (int i = 0; i < (m_tableau.s - 1); ++i) {
+		for (int i = 0; i < m_tableau.s; ++i) {
 
 			V = Vo;
 
@@ -32,18 +32,15 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 			for (int j = 0; j < (i + 1); ++j) {
 
-				if (i != (m_tableau.s - 2))
+				if (i < (m_tableau.s - 1)) {
 					V += dt * m_tableau.A[i + 1][j] * Fs[j];
-				else
+				}
+				else {
 					V += dt * m_tableau.b[j] * Fs[j];
-
+				}
 			}
 
 			MV = solver.M() * V;
-			
-			//this is faster than having to allocate a new arma::Col<double> in solver::poissonSolve and allows us to pass MV as const reference
-			if (solver.getSolverType() != POISSON_SOLVER::FOURIER)
-				MV(0) = 0.0;
 
 			phi = solver.poissonSolve(MV);
 
@@ -51,22 +48,33 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		}
 
-		Vo = std::move(Us.back());
-
 		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t < collectTime)
 				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
 		}
-			
+		
+		t = t + dt;
+
+		if (abs(finalT - t) < (0.01 * dt)) {
+			std::cout.precision(17);
+			std::cout << t << std::endl;
+			return Us.back();
+		}
+
+		if (t > finalT) {
+			std::cout.precision(17);
+			std::cout << t << std::endl;
+			return Vo;
+		}
+
+		Vo = std::move(Us.back());
 
 		Us.clear();
 		Fs.clear();
 
-		t = t + dt;
+		//std::cout << Vo.max() << std::endl;
 
 		std::cout << t << std::endl;
-
-		//std::cout << Vo.max() << std::endl;
 
 	}
 
@@ -101,7 +109,8 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		as.push_back(ao);
 
-		for (int i = 0; i < (m_tableau.s - 1); ++i) {
+		//correct all this jazz later
+		for (int i = 0; i < m_tableau.s; ++i) {
 
 			a = ao;
 
@@ -109,7 +118,7 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 			for (int j = 0; j < (i + 1); ++j) {
 
-				if (i != (m_tableau.s - 2))
+				if (i < (m_tableau.s - 1))
 					a += dt * m_tableau.A[i + 1][j] * Fs[j];
 				else
 					a += dt * m_tableau.b[j] * Fs[j];
@@ -132,7 +141,7 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		t = t + dt;
 
-		//std::cout << t << std::endl;
+		std::cout << t << std::endl;
 	}
 
 	return ao;

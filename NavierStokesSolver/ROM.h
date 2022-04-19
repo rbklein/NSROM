@@ -7,6 +7,13 @@
 #include "solver.h"
 #include "data.h"
 
+enum class HYPER_REDUCTION_METHOD {
+	NONE,
+	EXACT_TENSOR_DECOMPOSITION,
+	DEIM,
+	SP_DEIM,
+};
+
 class ROM_Solver {
 
 private:
@@ -33,6 +40,7 @@ public:
 			m_dataCollector(dataCollector),
 			m_numModesPOD(numModesPOD)
 	{
+
 		setupBasis();
 
 		precomputeOperators();
@@ -47,6 +55,8 @@ public:
 
 	double nu() const;
 
+	const solver& getSolver() const;
+
 private:
 
 	void setupBasis();
@@ -54,5 +64,49 @@ private:
 	void precomputeOperators();
 
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+//potential optimizations: template arguments or static polymorphism
+class Base_HyperReduction {
+
+protected:
+	HYPER_REDUCTION_METHOD m_method;
+
+	Base_HyperReduction(HYPER_REDUCTION_METHOD method)
+		: m_method(method)
+	{}
+
+public:
+	Base_HyperReduction(const Base_HyperReduction& other)
+		: m_method(other.getMethod())
+	{}
+
+	HYPER_REDUCTION_METHOD getMethod() const;
+
+	virtual arma::Col<double> Nr(const arma::Col<double>& a, const ROM_Solver& solver) const = 0;
+};
+
+class Naive : public Base_HyperReduction {
+
+public:
+	Naive()
+		: Base_HyperReduction(HYPER_REDUCTION_METHOD::NONE)
+	{}
+
+	virtual arma::Col<double> Nr(const arma::Col<double>& a, const ROM_Solver& solver) const override;
+};
+*/
 
 #endif

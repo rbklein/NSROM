@@ -89,3 +89,7 @@ arma::Col<double> ROM_Solver::Nr(const arma::Col<double>& a) const {
 double ROM_Solver::nu() const {
 	return m_solver.nu();
 }
+
+const solver& ROM_Solver::getSolver() const {
+	return m_solver;
+}
