@@ -49,8 +49,10 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		}
 
 		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
-			if (t < collectTime)
+			if (t <= collectTime) {
 				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
+				Base_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.N(Vo));
+			}
 		}
 		
 		t = t + dt;
@@ -74,7 +76,7 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		//std::cout << Vo.max() << std::endl;
 
-		std::cout << t << std::endl;
+		//std::cout << t << std::endl;
 
 	}
 
@@ -109,7 +111,6 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		as.push_back(ao);
 
-		//correct all this jazz later
 		for (int i = 0; i < m_tableau.s; ++i) {
 
 			a = ao;
@@ -141,7 +142,7 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		t = t + dt;
 
-		std::cout << t << std::endl;
+		//std::cout << t << std::endl;
 	}
 
 	return ao;

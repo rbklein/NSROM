@@ -96,6 +96,8 @@ public:
 
 	const mesh& getMesh() const;
 
+	std::pair<arma::uword, arma::uword> vectorToGridIndex(arma::uword) const;
+
 private:
 	arma::SpMat<double> setupDiffusionMatrix();
 	arma::SpMat<double> setupDivergenceMatrix();

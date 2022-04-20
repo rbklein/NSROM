@@ -14,6 +14,103 @@ enum class HYPER_REDUCTION_METHOD {
 	SP_DEIM,
 };
 
+//forward declaration of ROM_Solver class
+class ROM_Solver;
+
+
+//base class for all hyper-reduction methods
+class Base_hyperReduction
+{
+protected:
+
+	HYPER_REDUCTION_METHOD m_method;
+
+	Base_hyperReduction(HYPER_REDUCTION_METHOD method)
+		: m_method(method)
+	{}
+
+public:
+
+	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
+
+	virtual void initialize(const ROM_Solver& rom_solver) = 0;
+
+	HYPER_REDUCTION_METHOD getType() const;
+};
+
+
+
+
+//Naive ROM implementation
+class noHyperReduction : public Base_hyperReduction
+{
+public:
+
+	noHyperReduction()
+		: Base_hyperReduction(HYPER_REDUCTION_METHOD::NONE)
+	{}
+
+	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual void initialize(const ROM_Solver& rom_solver) override;
+
+};
+
+
+
+
+
+//Discrete Empirical Interpolation Method
+class DEIM : public Base_hyperReduction
+{
+protected:
+	//number of modes
+	int m_numModes;
+
+	//snapshot data collector
+	const dataCollector<true>& m_collector;
+
+	//measurement space and vector indices
+	arma::SpMat<double> m_P;
+	std::vector<arma::uword> m_indsP;
+	std::vector<std::pair<arma::uword, arma::uword>> m_gridIndsP;
+
+	//DEIM modes
+	arma::Mat<double> m_M;
+
+	//projected DEIM modes
+	arma::Mat<double> m_PsiTM;
+
+	//DEIM modes in measurement space
+	arma::Mat<double> m_PTM_L;
+	arma::Mat<double> m_PTM_U;
+	arma::Mat<double> m_PTM_perm;
+
+public:
+
+	DEIM(int numModes, const dataCollector<true>& collector)
+		: Base_hyperReduction(HYPER_REDUCTION_METHOD::DEIM),
+		m_numModes(numModes),
+		m_collector(collector)
+	{
+		setupMeasurementSpace();
+	}
+
+	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual void initialize(const ROM_Solver& rom_solver) override;
+
+private:
+
+
+
+	void setupMeasurementSpace();
+
+};
+
+
+
+//class that solves ROM calculations 
 class ROM_Solver {
 
 private:
@@ -33,25 +130,32 @@ private:
 	//data collector reference
 	const dataCollector<true>& m_dataCollector;
 
+	//hyper reduction algorithm
+	Base_hyperReduction& m_hyperReduction;
+
 public:
 
-	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD)
+	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD, Base_hyperReduction& hyperReduction)
 		:	m_solver(solver),
 			m_dataCollector(dataCollector),
-			m_numModesPOD(numModesPOD)
+			m_numModesPOD(numModesPOD),
+			m_hyperReduction(hyperReduction)
 	{
-
 		setupBasis();
+
+		m_hyperReduction.initialize(*this);
 
 		precomputeOperators();
 	}
-
+		
 	arma::Col<double> calculateIC(const arma::Col<double>&) const;
 
 	const arma::Mat<double>& Dr() const;
 	const arma::Mat<double>& Psi() const;
 
 	arma::Col<double> Nr(const arma::Col<double>&) const;
+
+	double Nindex(const arma::Col<double>&, arma::uword, arma::uword, arma::uword) const;
 
 	double nu() const;
 
@@ -72,41 +176,5 @@ private:
 
 
 
-
-
-
-
-
-/*
-//potential optimizations: template arguments or static polymorphism
-class Base_HyperReduction {
-
-protected:
-	HYPER_REDUCTION_METHOD m_method;
-
-	Base_HyperReduction(HYPER_REDUCTION_METHOD method)
-		: m_method(method)
-	{}
-
-public:
-	Base_HyperReduction(const Base_HyperReduction& other)
-		: m_method(other.getMethod())
-	{}
-
-	HYPER_REDUCTION_METHOD getMethod() const;
-
-	virtual arma::Col<double> Nr(const arma::Col<double>& a, const ROM_Solver& solver) const = 0;
-};
-
-class Naive : public Base_HyperReduction {
-
-public:
-	Naive()
-		: Base_HyperReduction(HYPER_REDUCTION_METHOD::NONE)
-	{}
-
-	virtual arma::Col<double> Nr(const arma::Col<double>& a, const ROM_Solver& solver) const override;
-};
-*/
 
 #endif

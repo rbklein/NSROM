@@ -28,6 +28,11 @@ public:
 
 };
 
+
+
+
+
+
 struct ButcherTableau {
 
 	//RK stages
@@ -65,7 +70,7 @@ public:
 
 
 
-
+//Has to be different class from Base_Integrator because ROM_Solver and solver are not polymorphic (too much hassle with templates)
 template<bool COLLECT_DATA>
 class Base_ROM_Integrator {
 

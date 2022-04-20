@@ -7,6 +7,8 @@
 #include "data.h"
 #include "ROM.h"
 
+//CHECK THIS: MODES ARE NOT ALWAYS DIVERGENCE FREE!!!
+
 //make modes omega-orthogonal and momentum conserving (divergence-free automatically) 
 //IMPORTANT: realize -> momentum conserving modes are also divergence-free!!
 void ROM_Solver::setupBasis() {
@@ -83,7 +85,7 @@ const arma::Mat<double>& ROM_Solver::Psi() const {
 }
 
 arma::Col<double> ROM_Solver::Nr(const arma::Col<double>& a) const {
-	return m_Psi.t() * m_solver.N(m_Psi * a);
+	return m_hyperReduction.Nrh(a, *this);
 }
 
 double ROM_Solver::nu() const {

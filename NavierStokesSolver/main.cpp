@@ -29,7 +29,7 @@ int main() {
 
 #ifdef FOM_CODE
 
-	mesh Mesh(100, 100, 2 * PI, 2 * PI); //(400, 400, 1.0, 1.0);
+	mesh Mesh(100, 100, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -52,7 +52,7 @@ int main() {
 
 	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(tableRK4);
 
-	double Time			= 1.0;
+	double Time			= 8.0;
 	double dt			= 0.01;
 	double collectTime	= 8.0;
 
@@ -79,8 +79,13 @@ int main() {
 #ifdef ROM_CODE
 
 	int numModesPOD = 10;
+	int numModesDEIM = 10;
 
-	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD);
+	//noHyperReduction hyperReduction;
+
+	DEIM deim(numModesDEIM, RK4.getDataCollector());
+
+	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD, deim);
 
 	ExplicitRungeKutta_ROM<false> RK4r(tableRK4);
 

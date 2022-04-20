@@ -2,6 +2,7 @@
 #include <armadillo>
 #include <cmath>
 #include <complex>
+#include <utility>
 
 #include "solver.h"
 
@@ -120,9 +121,9 @@ arma::Col<double> solver::interpolateVelocity(const arma::Col<double>& vel) {
 		for (arma::uword j = 0; j < m_mesh.getNumCellsX(); ++j) {
 
 			if (i != (m_mesh.getNumCellsY() - 1))
-				velInterp(CellsP(i, j).vectorIndex + num) = 0.0 * 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(i + 1, j).vectorIndex));
+				velInterp(CellsP(i, j).vectorIndex + num) = 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(i + 1, j).vectorIndex));
 			else
-				velInterp(CellsP(i, j).vectorIndex + num) = 0.0 * 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(0, j).vectorIndex));
+				velInterp(CellsP(i, j).vectorIndex + num) = 0.5 * (vel(CellsV(i, j).vectorIndex) + vel(CellsV(0, j).vectorIndex));
 
 			if (j != (m_mesh.getNumCellsX() - 1))
 				velInterp(CellsP(i, j).vectorIndex) = 0.5 * (vel(CellsU(i, j).vectorIndex) + vel(CellsU(i, j + 1).vectorIndex));
@@ -133,4 +134,30 @@ arma::Col<double> solver::interpolateVelocity(const arma::Col<double>& vel) {
 	}
 
 	return velInterp;
+}
+
+std::pair<arma::uword, arma::uword> solver::vectorToGridIndex(arma::uword vectorInd) const {
+
+	const arma::field<cell>& CellsU = m_mesh.getCellsU();
+	const arma::field<cell>& CellsV = m_mesh.getCellsV();
+
+	for (arma::uword i = m_mesh.getStartIndUy(); i < m_mesh.getEndIndUy(); ++i) {
+		for (arma::uword j = m_mesh.getStartIndUx(); j < m_mesh.getEndIndUx(); ++j) {
+
+			if (CellsU(i, j).vectorIndex == vectorInd)
+				return { i, j };
+
+		}
+	}
+
+	for (arma::uword i = m_mesh.getStartIndVy(); i < m_mesh.getEndIndVy(); ++i) {
+		for (arma::uword j = m_mesh.getStartIndVx(); j < m_mesh.getEndIndVx(); ++j) {
+
+			if (CellsV(i, j).vectorIndex == vectorInd)
+				return { i, j };
+
+		}
+	}
+
+	std::cout << "index: " << vectorInd << ", not present in grid..." << std::endl;
 }
