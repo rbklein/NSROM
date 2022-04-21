@@ -53,6 +53,8 @@ void ROM_Solver::setupBasis() {
 	//perform svd of scaled snapshots
 	arma::svd_econ(PsiFull, singularValues, _, scaledSnapshotData);
 
+	singularValues.save("pod_sing_vals.txt", arma::raw_ascii);
+
 	//add momentum conserving modes
 	m_Psi.insert_cols(0, E);
 

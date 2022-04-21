@@ -6,8 +6,14 @@
 #include "solver.h"
 #include "integrators.h"
 
+#define CALCULATE_ENERGY
+
 template<bool COLLECT_DATA>
 arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const solver& solver, double collectTime) {
+
+#ifdef CALCULATE_ENERGY
+	std::vector<double> kineticEnergy;
+#endif
 
 	std::vector<arma::Col<double>> Us;
 	std::vector<arma::Col<double>> Fs;
@@ -60,12 +66,18 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		if (abs(finalT - t) < (0.01 * dt)) {
 			std::cout.precision(17);
 			std::cout << t << std::endl;
+#ifdef CALCULATE_ENERGY
+			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+#endif
 			return Us.back();
 		}
 
 		if (t > finalT) {
 			std::cout.precision(17);
 			std::cout << t << std::endl;
+#ifdef CALCULATE_ENERGY
+			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+#endif
 			return Vo;
 		}
 
@@ -74,11 +86,19 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		Us.clear();
 		Fs.clear();
 
+#ifdef CALCULATE_ENERGY
+		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * solver.Om() * Vo));
+#endif
+
 		//std::cout << Vo.max() << std::endl;
 
 		//std::cout << t << std::endl;
 
 	}
+
+#ifdef CALCULATE_ENERGY
+	arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+#endif
 
 	return Vo;
 }
@@ -97,6 +117,10 @@ template const dataCollector<false>& Base_Integrator<false>::getDataCollector() 
 
 template<bool COLLECT_DATA>
 arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT, double dt, const arma::Col<double>& initialA, const arma::Col<double>& initialP, const ROM_Solver& solver, double collectTime) {
+
+#ifdef CALCULATE_ENERGY
+	std::vector<double> kineticEnergy;
+#endif
 
 	std::vector<arma::Col<double>> as;
 	std::vector<arma::Col<double>> Fs;
@@ -131,6 +155,10 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		ao = as.back();
 
+#ifdef CALCULATE_ENERGY
+		kineticEnergy.push_back(0.5 * arma::as_scalar(ao.t() * ao));
+#endif
+
 		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t < collectTime)
 				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
@@ -144,6 +172,10 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		//std::cout << t << std::endl;
 	}
+
+#ifdef CALCULATE_ENERGY
+	arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
+#endif
 
 	return ao;
 }

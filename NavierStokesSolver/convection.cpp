@@ -422,9 +422,10 @@ arma::Col<double> solver::N(const arma::Col<double>& vel)  const{
 }
 
 
+//WALKTHROUGH THIS CODE VVV ONE MORE TIME
 
 //evaluate a single index with rom scaling coefficients as input
-double ROM_Solver::Nindex(const arma::Col<double>& a, arma::uword vecIndex, arma::uword i, arma::uword j)  const {
+double ROM_Solver::Nindex(const arma::Col<double>& a, arma::uword vecIndex, arma::uword i, arma::uword j) const {
 
 	double N = 0.0;
 
@@ -439,10 +440,7 @@ double ROM_Solver::Nindex(const arma::Col<double>& a, arma::uword vecIndex, arma
 	//if u node
 	if (vecIndex < m_solver.getMesh().getNumU()) {
 
-		double uC = arma::as_scalar(m_Psi.row(vecIndex) * a);
-
 		double uConvd = 0.0;
-		double velFlux1 = 0.0, velFlux2 = 0.0;
 
 		//if interior node
 		if (!CellsU(i, j).onBoundary) {
@@ -456,7 +454,7 @@ double ROM_Solver::Nindex(const arma::Col<double>& a, arma::uword vecIndex, arma
 					uConvd = arma::as_scalar(m_Psi.row(CellsU(i + di[k], j + dj[k]).vectorIndex) * a);
 
 					N += 0.5 * uConvd * 0.5 * (
-						(dj[k] != 0) ? dj[k] * (	arma::as_scalar(m_Psi.row(CellsU(i, j + dj[k]).vectorIndex) * a) + 
+						(dj[k] != 0) ? dj[k] * (	arma::as_scalar(m_Psi.row(CellsU(i, j).vectorIndex) * a) + 
 													uConvd																						) * CellsU(i, j).dy
 						: di[k] * (					arma::as_scalar(m_Psi.row(CellsV(i + ((di[k] == 1) ? 1 : 0), j - 1).vectorIndex) * a)  + 
 													arma::as_scalar(m_Psi.row(CellsV(i + ((di[k] == 1) ? 1 : 0), j).vectorIndex) * a)			) * CellsU(i, j).dx				//di[k] * (vel(CellsV(i + roundl(0.5 * di[k] + 0.5)	, j - 1		).vectorIndex) + vel(CellsV(i + roundl(0.5 * di[k] + 0.5)	, j).vectorIndex)) * CellsU(i, j).dx

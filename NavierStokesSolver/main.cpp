@@ -42,6 +42,9 @@ int main() {
 			0.001
 		);
 	
+	//put this VVV in a namespace somehow
+
+	//classical Runge-Kutta 4
 	ButcherTableau tableRK4({
 		4,
 		{{0.0}, {1.0 / 2.0}, {0.0, 1.0 / 2.0}, {0.0, 0.0, 1.0}},
@@ -50,7 +53,21 @@ int main() {
 		}
 	);
 
-	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(tableRK4);
+	//Runge-Kutta method of order 3 with pseudo-symplectic order 6 by Aubry et al.
+	ButcherTableau tableRKO3PSO6({
+		5,
+		{	{0.0},
+			{0.13502027922908531468},
+			{-0.47268213605236986919, 1.05980250415418968199},
+			{-1.21650460595688538935, 2.16217630216752533012, -0.372345924265360030384}, 
+			{0.3327444303638736757818, -0.2088266829658723128357, 1.8786561773792085608959, -1.0025739247772099238420} 
+		},
+		{0.04113894457091769183, 0.26732123194413937348, 0.86700906289954518480, -0.30547139552035758861, 0.13000215610575533849},
+		{0.0, 0.13502027922908531468, 0.58712036810181981280, 0.57332577194527991038,1.0 }
+		}
+	);
+
+	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(tableRKO3PSO6); // tableRK4);
 
 	double Time			= 8.0;
 	double dt			= 0.01;
@@ -78,16 +95,18 @@ int main() {
 
 #ifdef ROM_CODE
 
-	int numModesPOD = 10;
-	int numModesDEIM = 10;
+	int numModesPOD = 16;
+	int numModesDEIM = 16;
 
-	//noHyperReduction hyperReduction;
+	//noHyperReduction noHyperReduction;
 
-	DEIM deim(numModesDEIM, RK4.getDataCollector());
+	//DEIM deim(numModesDEIM, RK4.getDataCollector());
 
-	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD, deim);
+	SPDEIM spdeim(numModesDEIM, RK4.getDataCollector());
 
-	ExplicitRungeKutta_ROM<false> RK4r(tableRK4);
+	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD, spdeim);
+
+	ExplicitRungeKutta_ROM<false> RK4r(tableRKO3PSO6); // tableRK4);
 
 	arma::Col<double> a		= RomSolver.calculateIC(velInit);
 	arma::Col<double> aInit = a;
@@ -104,6 +123,12 @@ int main() {
 	RomVelInterp.save("rom_vel.txt", arma::raw_ascii);
 
 	std::cout << "divergence: " << (Solver.M() * velr).max() << std::endl;
+
+	std::cout << arma::abs((velr - vel)).max() << std::endl;
+
+	//std::cout << a.t() * deim.Nrh(a, RomSolver) << std::endl;
+
+	std::cout << a.t() * spdeim.Nrh(a, RomSolver) << std::endl;
 
 #endif
 
