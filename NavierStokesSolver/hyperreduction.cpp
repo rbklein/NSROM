@@ -99,7 +99,7 @@ void DEIM::initialize(const ROM_Solver& rom_solver) {
 void SPDEIM::setupMeasurementSpace() {
 
 	//get reference to data matrix
-	const arma::Mat<double> operatorMatrix = m_collector.getOperatorMatrix();
+	const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
 
 	//declare singular vectors and singular values
 	arma::Mat<double> MFull, _;

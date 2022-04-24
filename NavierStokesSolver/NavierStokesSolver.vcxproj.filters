@@ -48,6 +48,9 @@
     <ClCompile Include="hyperreduction.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
+    <ClCompile Include="jacobian.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mesh.h">

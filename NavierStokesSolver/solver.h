@@ -78,6 +78,9 @@ public:
 
 	arma::Col<double>		   N(const arma::Col<double>&) const;
 
+	//Convection Jacobian
+	arma::SpMat<double>		   J(const arma::Col<double>&) const;
+
 	const arma::SpMat<double>& D() const;
 	const arma::SpMat<double>& M() const;
 	const arma::SpMat<double>& G() const;

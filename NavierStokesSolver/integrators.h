@@ -107,6 +107,57 @@ public:
 
 
 
+//a singleton type class providing butcher tableaus
+class ButcherTableaus
+{
+public:
+
+	ButcherTableaus(const ButcherTableaus&) = delete;
+
+	static ButcherTableaus& Get()
+	{
+		static ButcherTableaus instance;
+		return instance;
+	}
+
+	//classical Runge-Kutta 4
+	static ButcherTableau RK4() { return Get().RK4_Impl(); }
+
+	//Runge-Kutta method of order 3 with pseudo-symplectic order 6 by Aubry et al.
+	static ButcherTableau RKO3PSO6() { return Get().RKO3PSO6_Impl(); }
+
+private:
+
+	ButcherTableaus() {}
+
+	ButcherTableau RK4_Impl() {
+		return {
+					4,
+					{{0.0}, {1.0 / 2.0}, {0.0, 1.0 / 2.0}, {0.0, 0.0, 1.0}},
+					{1.0 / 6.0,	1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0 },
+					{ 0.0, 1.0 / 2.0, 1.0 / 2.0, 1.0 },
+		};
+	}
+
+	ButcherTableau RKO3PSO6_Impl() {
+		return {
+					5,
+				{	{0.0},
+					{0.13502027922908531468},
+					{-0.47268213605236986919, 1.05980250415418968199},
+					{-1.21650460595688538935, 2.16217630216752533012, -0.372345924265360030384},
+					{0.3327444303638736757818, -0.2088266829658723128357, 1.8786561773792085608959, -1.0025739247772099238420}
+				},
+					{0.04113894457091769183, 0.26732123194413937348, 0.86700906289954518480, -0.30547139552035758861, 0.13000215610575533849},
+					{0.0, 0.13502027922908531468, 0.58712036810181981280, 0.57332577194527991038,1.0 }
+		};
+	}
+
+
+
+};
+
+
 
 
 #endif

@@ -58,8 +58,6 @@ arma::Col<double> solver::N(const arma::Col<double>& vel)  const{
 			//if boundary node
 			else {
 
-				//TO DO: VERIFY IMPLEMENTATION
-
 				//loop over neighbours
 				for (int k = 0; k < 4; ++k) {
 

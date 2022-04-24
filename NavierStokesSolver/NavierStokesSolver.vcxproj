@@ -153,6 +153,7 @@
     <ClCompile Include="divgrad.cpp" />
     <ClCompile Include="hyperreduction.cpp" />
     <ClCompile Include="integrators.cpp" />
+    <ClCompile Include="jacobian.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="diffusion.cpp" />
