@@ -15,6 +15,10 @@ enum class POISSON_SOLVER {
 	FOURIER,
 };
 
+enum class LINEAR_SOLVER {
+	DIRECT,
+	//iterative methods
+};
 
 //solves incompressible Navier-Stokes equations
 class solver {

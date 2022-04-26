@@ -4,6 +4,7 @@
 #include <iostream>
 #include <armadillo>
 #include <vector>
+#include <cmath>
 
 #include "data.h"
 #include "solver.h"
@@ -64,7 +65,23 @@ public:
 
 };
 
+template<bool COLLECT_DATA>
+class ImplicitRungeKutta_NS : public Base_Integrator<COLLECT_DATA> {
 
+	ButcherTableau m_tableau;
+	LINEAR_SOLVER m_solver;
+
+public:
+
+	ImplicitRungeKutta_NS(ButcherTableau tableau, LINEAR_SOLVER solver)
+		:	Base_Integrator<COLLECT_DATA>(), 
+			m_tableau{ tableau },
+			m_solver{ solver }
+	{}
+
+	virtual arma::Col<double> integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const solver& solver, double collectTime = 0.0) override;
+
+};
 
 
 
@@ -126,6 +143,12 @@ public:
 	//Runge-Kutta method of order 3 with pseudo-symplectic order 6 by Aubry et al.
 	static ButcherTableau RKO3PSO6() { return Get().RKO3PSO6_Impl(); }
 
+	//Energy-conserving Gauss-Legendre implicit Runge-Kutta method of order 4
+	static ButcherTableau GL4() { return Get().GL4_Impl(); }
+
+	//Energy-conserving implicit midpoint rule of order 2
+	static ButcherTableau implicitMidpoint() { return Get().implicitMidpoint_Impl(); }
+
 private:
 
 	ButcherTableaus() {}
@@ -153,7 +176,27 @@ private:
 		};
 	}
 
+	ButcherTableau GL4_Impl() {
+		return {
+					2,
+			{		{0.25, 0.25 - 1.0 / 6.0 * sqrt(3.0)},
+					{0.25 + 1.0 / 6.0 * sqrt(3.0), 0.25}
+			},
+					{0.5, 0.5},
+					{0.5 - 1.0 / 6.0 * sqrt(3.0), 0.5 + 1.0 / 6.0 * sqrt(3.0)}
+		};
+	}
 
+	ButcherTableau implicitMidpoint_Impl() {
+		return {
+					1,
+				{	
+					{0.5}
+				},
+					{1.0},
+					{0.5}
+		};
+	}
 
 };
 

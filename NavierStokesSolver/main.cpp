@@ -12,14 +12,15 @@
 
 #include "ROM.h"
 
+//TO DO: mesh does not work for 2x2 (but who cares?)
+
 constexpr double PI = 3.14159265358979323846;
-constexpr bool COLLECT_DATA = true;
+constexpr bool COLLECT_DATA = false;
 
 #define FOM_CODE
-#define ROM_CODE
+//#define ROM_CODE
 //#define TEST_CODE_SPATIAL
 //#define TEST_CODE_TEMPORAL
-
 
 int main() {
 
@@ -27,7 +28,7 @@ int main() {
 
 #ifdef FOM_CODE
 
-	mesh Mesh(100, 100, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
+	mesh Mesh(40, 40, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -40,18 +41,24 @@ int main() {
 			0.001
 		);
 
-	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(ButcherTableaus::RK4());
+	//ExplicitRungeKutta_NS<COLLECT_DATA> RK4(ButcherTableaus::RK4());
 
-	double Time			= 8.0;
+	ImplicitRungeKutta_NS<COLLECT_DATA> GL4(ButcherTableaus::GL4(), LINEAR_SOLVER::DIRECT);
+
+	double Time			= 0.1;
 	double dt			= 0.01;
 	double collectTime	= 8.0;
+
+	//arma::Col<double> vel	= arma::linspace(0.0, Mesh.getNumU() + Mesh.getNumV() - 1.0, Mesh.getNumU() + Mesh.getNumV());
 
 	arma::Col<double> vel	= Solver.setupTestCase(TESTSUITE::SHEAR_LAYER_ROLL_UP);
 	arma::Col<double> p		= arma::zeros(0.0);
 
 	arma::Col<double> velInit = vel;
 	
-	vel = RK4.integrate(Time, dt, vel, p, Solver, collectTime);
+	//vel = RK4.integrate(Time, dt, vel, p, Solver, collectTime);
+
+	vel = GL4.integrate(Time, dt, vel, p, Solver, collectTime);
 
 	arma::Col<double> velInterp = Solver.interpolateVelocity(vel);
 
@@ -61,6 +68,7 @@ int main() {
 	velInterp.save("vel.txt", arma::raw_ascii);
 
 	std::cout << "divergence: " << (Solver.M() * vel).max() << std::endl;
+	
 
 #endif
 
@@ -191,9 +199,9 @@ int main() {
 
 	std::vector<double> timeSteps = { 0.1, 0.05, 0.025, 0.0125, 0.00625 };
 
-	double Time = 1.0;
+	double Time = 0.5;
 
-	ExplicitRungeKutta_NS<COLLECT_DATA> RK4(ButcherTableaus::RK4());
+	ImplicitRungeKutta_NS<COLLECT_DATA> implicitMidpoint(ButcherTableaus::GL4(), LINEAR_SOLVER::DIRECT);
 
 	arma::Col<double> vel = Solver.setupTestCase(TESTSUITE::TAYLOR_GREEN_VORTEX);
 	arma::Col<double> p = arma::zeros(0.0);
@@ -221,11 +229,11 @@ int main() {
 		}
 	}
 
-	arma::Col<double> velControl = RK4.integrate(Time, 0.001, velInit, p, Solver);
+	arma::Col<double> velControl = implicitMidpoint.integrate(Time, 0.001, velInit, p, Solver);
 
 	for (int i = 0; i < 5; ++i) {
 
-		vel = RK4.integrate(Time, timeSteps[i], velInit, p, Solver);
+		vel = implicitMidpoint.integrate(Time, timeSteps[i], velInit, p, Solver);
 
 		temporalConvergence.push_back(arma::norm(velControl - vel, "inf"));
 
