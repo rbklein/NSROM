@@ -17,6 +17,8 @@ enum class POISSON_SOLVER {
 
 enum class LINEAR_SOLVER {
 	DIRECT,
+	BICGSTAB,
+	GMRES,
 	//iterative methods
 };
 

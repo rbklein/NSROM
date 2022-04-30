@@ -117,14 +117,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\rklei\Desktop\code\C++\StaticSuperlu\SuperluLibrary;D:\Armadillo_Install\armadillo-11.0.0\include;D:\Armadillo_Install\armadillo-11.0.0\include;D:\SuperLU_Install\SuperLU_5.2.0\SRC;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\rklei\Desktop\lis\lis-2.0.34\include;C:\Users\rklei\Desktop\code\C++\StaticSuperlu\SuperluLibrary;D:\Armadillo_Install\armadillo-11.0.0\include;D:\Armadillo_Install\armadillo-11.0.0\include;D:\SuperLU_Install\SuperLU_5.2.0\SRC;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\rklei\Desktop\code\C++\StaticSuperlu\x64\Release;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;C:\Users\rklei\Desktop\code\C++\superlu\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libopenblas.lib;SuperluLibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\rklei\Desktop\lis\lis-2.0.34\win;C:\Users\rklei\Desktop\code\C++\StaticSuperlu\x64\Release;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;C:\Users\rklei\Desktop\code\C++\superlu\x64\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libopenblas.lib;SuperluLibrary.lib;lis.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -135,7 +135,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\rklei\Desktop\code\C++\StaticSuperlu\SuperluLibrary;D:\Armadillo_Install\armadillo-11.0.0\include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\rklei\Desktop\lis\lis-2.0.34\include;C:\Users\rklei\Desktop\code\C++\StaticSuperlu\SuperluLibrary;D:\Armadillo_Install\armadillo-11.0.0\include;</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
     </ClCompile>
     <Link>
@@ -143,8 +143,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\rklei\Desktop\code\C++\StaticSuperlu\x64\Release;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libopenblas.lib;SuperluLibrary.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\rklei\Desktop\lis\lis-2.0.34\win;C:\Users\rklei\Desktop\code\C++\StaticSuperlu\x64\Release;D:\Armadillo_Install\armadillo-11.0.0\examples\lib_win64;</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;libopenblas.lib;SuperluLibrary.lib;lis.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <Profile>true</Profile>
     </Link>
   </ItemDefinitionGroup>
@@ -166,6 +166,7 @@
     <ClInclude Include="boundary.h" />
     <ClInclude Include="data.h" />
     <ClInclude Include="integrators.h" />
+    <ClInclude Include="iterative.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="ROM.h" />
     <ClInclude Include="solver.h" />

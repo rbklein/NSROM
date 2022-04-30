@@ -28,7 +28,7 @@ int main() {
 
 #ifdef FOM_CODE
 
-	mesh Mesh(40, 40, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
+	mesh Mesh(100, 100, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -43,10 +43,12 @@ int main() {
 
 	//ExplicitRungeKutta_NS<COLLECT_DATA> RK4(ButcherTableaus::RK4());
 
-	ImplicitRungeKutta_NS<COLLECT_DATA> GL4(ButcherTableaus::GL4(), LINEAR_SOLVER::DIRECT);
+	//SET TOLERANCES BACK FOR EXACT SOLVER
 
-	double Time			= 0.1;
-	double dt			= 0.01;
+	ImplicitRungeKutta_NS<COLLECT_DATA> GL4(ButcherTableaus::GL4(), LINEAR_SOLVER::GMRES);
+
+	double Time			= 8.0;
+	double dt			= 0.05;
 	double collectTime	= 8.0;
 
 	//arma::Col<double> vel	= arma::linspace(0.0, Mesh.getNumU() + Mesh.getNumV() - 1.0, Mesh.getNumU() + Mesh.getNumV());
@@ -69,7 +71,6 @@ int main() {
 
 	std::cout << "divergence: " << (Solver.M() * vel).max() << std::endl;
 	
-
 #endif
 
 	//REDUCED ORDER MODEL

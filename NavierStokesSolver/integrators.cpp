@@ -7,6 +7,7 @@
 #include "data.h"
 #include "solver.h"
 #include "integrators.h"
+#include "iterative.h"
 
 //#define CALCULATE_ENERGY
 
@@ -141,7 +142,7 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 	}
 
-	std::cout << numU << " " << Vo.n_rows << std::endl;
+	std::cout << numU << " " << m_tableau.s * (numU + numPhi) << std::endl;
 
 	as = arma::kron(as, arma::speye(numU, numU));
 
@@ -187,6 +188,9 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 	arma::Col<double> Phi, prevVo;
 
+	bool init = true;
+	arma::Mat<double> stagesNextMat;
+
 	while (t < finalT) {
 
 		//solve...
@@ -216,16 +220,46 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 			//rhs.rows(0, m_tableau.s * numU + m_tableau.s * numPhi - 1) += constraints.t() * multipliers;
 
-			if (!arma::spsolve(stagesNext, S, rhs)) {
-				//arma::Mat<double>(S).save("matrix.txt", arma::raw_ascii);
-				throw std::runtime_error("Error in linear solve");
-			}
+			switch (m_solver) {
+			case(LINEAR_SOLVER::DIRECT):
 
+				if (!arma::spsolve(stagesNext, S, rhs)) {
+					//arma::Mat<double>(S).save("matrix.txt", arma::raw_ascii);
+					throw std::runtime_error("Error in linear solve");
+				}
+
+				break;
+			case(LINEAR_SOLVER::BICGSTAB):
+
+				if (init) {
+					stagesNext = arma::join_cols(stagesNext, zeros);
+
+					init = false;
+				}
+
+				iterative_solve(stagesNext, S, rhs, "1e-14", solver_type::BiCGSTAB, precond::ilu);
+
+				break;
+			case(LINEAR_SOLVER::GMRES):
+
+				if (init) {
+					stagesNext = arma::join_cols(stagesNext, zeros);
+
+					init = false;
+				}
+
+				iterative_solve(stagesNext, S, rhs, "1e-14", solver_type::GMRES, precond::ilu);
+
+				break;
+			}
+			
 			//std::cout << "max divergence stage vector: " << (solver.M() * getStage(stagesNext, 1)).max() << std::endl;
 
 			multipliers = stagesNext.rows(stagesNext.n_rows - m_tableau.s, stagesNext.n_rows - 1);
 
-		} while (arma::norm(stagesNext.rows(0, m_tableau.s * numU - 1) - stagesPrev, 2) / arma::norm(stagesPrev, 2) > 0.00001);
+			std::cout << "iteration error: " << arma::norm(stagesNext.rows(0, m_tableau.s * numU - 1) - stagesPrev, 2) << std::endl;
+
+		} while (arma::norm(stagesNext.rows(0, m_tableau.s * numU - 1) - stagesPrev, 2) > 1e-11);// / arma::norm(stagesPrev, 2) > 0.000001);
 		//assign to Vo...
 
 		//std::cout << "converged to: " << arma::norm(stagesNext.rows(0, m_tableau.s * numU - 1) - stagesPrev, 2) / arma::norm(stagesPrev, 2) << std::endl;
@@ -247,6 +281,8 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		//std::cout << "max divergence solution vector: " << (solver.M() * Vo).max() << std::endl;
 
 		stagesNext = arma::repmat(arma::Mat<double>(Vo), m_tableau.s, 1).as_col();
+
+		init = true;
 
 		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t <= collectTime) {
@@ -276,7 +312,7 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		}
 
 
-		std::cout << t << std::endl;
+		std::cout << "time: " << t << std::endl;
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * solver.Om() * Vo));

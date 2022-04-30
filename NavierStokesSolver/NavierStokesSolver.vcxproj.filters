@@ -74,5 +74,8 @@
     <ClInclude Include="ROM.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="iterative.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
