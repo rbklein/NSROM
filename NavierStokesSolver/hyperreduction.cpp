@@ -13,6 +13,10 @@ arma::Col<double> noHyperReduction::Nrh(const arma::Col<double>& a, const ROM_So
 	return rom_solver.Psi().t() * rom_solver.getSolver().N(rom_solver.Psi() * a);
 }
 
+arma::Mat<double> noHyperReduction::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
+	return arma::Mat<double>(rom_solver.Psi().t() * rom_solver.getSolver().J(rom_solver.Psi() * a));
+}
+
 void noHyperReduction::initialize(const ROM_Solver& rom_solver) {
 	//no initialization steps necessary
 }
@@ -92,7 +96,16 @@ void DEIM::initialize(const ROM_Solver& rom_solver) {
 	m_PsiTM = rom_solver.Psi().t() * m_M;
 }
 
+arma::Mat<double> DEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
 
+	arma::Mat<double> PTJPsi;
+
+	for (int m = 0; m < m_numModes; ++m) {
+		PTJPsi = arma::join_cols(PTJPsi, rom_solver.Jindex(a, m_indsP[m], m_gridIndsP[m].first, m_gridIndsP[m].second));
+	}
+
+	return m_PsiTM * arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * PTJPsi));
+}
 
 
 
@@ -179,6 +192,10 @@ arma::Col<double> SPDEIM::Nrh(const arma::Col<double>& a, const ROM_Solver& rom_
 	return m_PsiTM * c;
 }
 
+arma::Mat<double> SPDEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
+	std::cout << "SPDEIM jacobian not yet implemented..." << std::endl;
+	return arma::Mat<double>();
+}
 
 void SPDEIM::initialize(const ROM_Solver& rom_solver) {
 

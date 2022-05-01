@@ -122,6 +122,24 @@ public:
 
 };
 
+template<bool COLLECT_DATA>
+class ImplicitRungeKutta_ROM : public Base_ROM_Integrator<COLLECT_DATA> {
+
+	ButcherTableau m_tableau;
+	LINEAR_SOLVER m_solver;
+
+public:
+
+	ImplicitRungeKutta_ROM(ButcherTableau tableau, LINEAR_SOLVER solver)
+		: Base_ROM_Integrator<COLLECT_DATA>(),
+		m_tableau{ tableau },
+		m_solver{ solver }
+	{}
+
+	virtual arma::Col<double> integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const ROM_Solver& solver, double collectTime = 0.0) override;
+
+};
+
 
 
 //a singleton type class providing butcher tableaus

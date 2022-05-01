@@ -33,6 +33,8 @@ public:
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
 
+	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
+
 	virtual void initialize(const ROM_Solver& rom_solver) = 0;
 
 	HYPER_REDUCTION_METHOD getType() const;
@@ -51,6 +53,8 @@ public:
 	{}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual void initialize(const ROM_Solver& rom_solver) override;
 
@@ -99,6 +103,8 @@ public:
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual void initialize(const ROM_Solver& rom_solver) override;
+
+	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 private:
 
@@ -153,6 +159,8 @@ public:
 	}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual void initialize(const ROM_Solver& rom_solver) override;
 
@@ -209,8 +217,10 @@ public:
 	const arma::Mat<double>& Psi() const;
 
 	arma::Col<double> Nr(const arma::Col<double>&) const;
+	arma::Mat<double> Jr(const arma::Col<double>&) const;
 
 	double Nindex(const arma::Col<double>&, arma::uword, arma::uword, arma::uword) const;
+	arma::Row<double> Jindex(const arma::Col<double>&, arma::uword, arma::uword, arma::uword) const;
 
 	double nu() const;
 

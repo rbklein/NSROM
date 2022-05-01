@@ -15,10 +15,10 @@
 //TO DO: mesh does not work for 2x2 (but who cares?)
 
 constexpr double PI = 3.14159265358979323846;
-constexpr bool COLLECT_DATA = false;
+constexpr bool COLLECT_DATA = true;
 
 #define FOM_CODE
-//#define ROM_CODE
+#define ROM_CODE
 //#define TEST_CODE_SPATIAL
 //#define TEST_CODE_TEMPORAL
 
@@ -28,7 +28,7 @@ int main() {
 
 #ifdef FOM_CODE
 
-	mesh Mesh(100, 100, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
+	mesh Mesh(50, 50, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -41,14 +41,14 @@ int main() {
 			0.001
 		);
 
-	//ExplicitRungeKutta_NS<COLLECT_DATA> RK4(ButcherTableaus::RK4());
+	//ExplicitRungeKutta_NS<COLLECT_DATA> ERK(ButcherTableaus::RK4());
 
 	//SET TOLERANCES BACK FOR EXACT SOLVER
 
-	ImplicitRungeKutta_NS<COLLECT_DATA> GL4(ButcherTableaus::GL4(), LINEAR_SOLVER::GMRES);
+	ImplicitRungeKutta_NS<COLLECT_DATA> IRK(ButcherTableaus::implicitMidpoint(), LINEAR_SOLVER::DIRECT);
 
-	double Time			= 8.0;
-	double dt			= 0.05;
+	double Time			= 2.0;
+	double dt			= 0.1;
 	double collectTime	= 8.0;
 
 	//arma::Col<double> vel	= arma::linspace(0.0, Mesh.getNumU() + Mesh.getNumV() - 1.0, Mesh.getNumU() + Mesh.getNumV());
@@ -58,9 +58,9 @@ int main() {
 
 	arma::Col<double> velInit = vel;
 	
-	//vel = RK4.integrate(Time, dt, vel, p, Solver, collectTime);
+	//vel = ERK.integrate(Time, dt, vel, p, Solver, collectTime);
 
-	vel = GL4.integrate(Time, dt, vel, p, Solver, collectTime);
+	vel = IRK.integrate(Time, dt, vel, p, Solver, collectTime);
 
 	arma::Col<double> velInterp = Solver.interpolateVelocity(vel);
 
@@ -82,18 +82,22 @@ int main() {
 
 	//noHyperReduction noHyperReduction;
 
-	//DEIM deim(numModesDEIM, RK4.getDataCollector());
+	DEIM deim(numModesDEIM, IRK.getDataCollector());
 
-	SPDEIM spdeim(numModesDEIM, RK4.getDataCollector());
+	//SPDEIM spdeim(numModesDEIM, IRK.getDataCollector());
 
-	ROM_Solver RomSolver(Solver, RK4.getDataCollector(), numModesPOD, spdeim);
+	ROM_Solver RomSolver(Solver, IRK.getDataCollector(), numModesPOD, deim);
 
-	ExplicitRungeKutta_ROM<false> RK4r(ButcherTableaus::RK4());
+	//ExplicitRungeKutta_ROM<false> RK4r(ButcherTableaus::RK4());
+
+	ImplicitRungeKutta_ROM<false> IRKr(ButcherTableaus::implicitMidpoint(), LINEAR_SOLVER::GMRES);
 
 	arma::Col<double> a		= RomSolver.calculateIC(velInit);
 	arma::Col<double> aInit = a;
 
-	a = RK4r.integrate(Time, dt, a, p, RomSolver);
+	//a = RK4r.integrate(Time, dt, a, p, RomSolver);
+
+	a = IRKr.integrate(Time, dt, a, p, RomSolver);
 
 	arma::Col<double> velr	= RomSolver.Psi() * a;
 
@@ -108,9 +112,9 @@ int main() {
 
 	std::cout << arma::abs((velr - vel)).max() << std::endl;
 
-	//std::cout << a.t() * deim.Nrh(a, RomSolver) << std::endl;
+	std::cout << a.t() * deim.Nrh(a, RomSolver) << std::endl;
 
-	std::cout << a.t() * spdeim.Nrh(a, RomSolver) << std::endl;
+	//std::cout << a.t() * spdeim.Nrh(a, RomSolver) << std::endl;
 
 #endif
 

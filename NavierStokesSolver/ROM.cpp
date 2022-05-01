@@ -90,6 +90,10 @@ arma::Col<double> ROM_Solver::Nr(const arma::Col<double>& a) const {
 	return m_hyperReduction.Nrh(a, *this);
 }
 
+arma::Mat<double> ROM_Solver::Jr(const arma::Col<double>& a) const {
+	return m_hyperReduction.Jrh(a, *this);
+}
+
 double ROM_Solver::nu() const {
 	return m_solver.nu();
 }
