@@ -97,7 +97,7 @@ public:
 	double nu() const;
 
 	arma::Col<double> setupTestCase(TESTSUITE);
-	arma::Col<double> interpolateVelocity(const arma::Col<double>&);
+	arma::Col<double> interpolateVelocity(const arma::Col<double>&) const;
 
 	arma::Col<double> poissonSolve(const arma::Col<double>&) const;
 

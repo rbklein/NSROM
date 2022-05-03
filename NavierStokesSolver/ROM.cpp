@@ -33,8 +33,8 @@ void ROM_Solver::setupBasis() {
 	}
 
 	//normalize momentum conserving modes in omega-norm
-	Eu = 1.0 / sqrt(arma::as_scalar(Eu.t() * m_solver.Om() * Eu)) * Eu;
-	Ev = 1.0 / sqrt(arma::as_scalar(Ev.t() * m_solver.Om() * Ev)) * Ev;
+	Eu = (1.0 / sqrt(arma::as_scalar(Eu.t() * m_solver.Om() * Eu))) * Eu;
+	Ev = (1.0 / sqrt(arma::as_scalar(Ev.t() * m_solver.Om() * Ev))) * Ev;
 
 	arma::Mat<double> E = arma::join_rows(Eu, Ev);
 
@@ -51,7 +51,7 @@ void ROM_Solver::setupBasis() {
 	scaledSnapshotData = scaledSnapshotData - E * E.t() * m_solver.Om() * scaledSnapshotData;
 
 	//perform svd of scaled snapshots
-	arma::svd_econ(PsiFull, singularValues, _, scaledSnapshotData);
+	arma::svd_econ(PsiFull, singularValues, _, scaledSnapshotData, "left", "std");
 
 	singularValues.save("pod_sing_vals.txt", arma::raw_ascii);
 
@@ -64,6 +64,14 @@ void ROM_Solver::setupBasis() {
 	}
 
 	std::cout << (m_solver.M() * m_Psi).max() << " " << (m_solver.M() * m_Psi).min() << std::endl;
+
+	arma::Mat<double> modes;
+
+	for (int k = 0; k < m_numModesPOD; ++k) {
+		modes = arma::join_rows(modes, getSolver().interpolateVelocity(m_Psi.col(k)));
+	}
+
+	modes.save("pod_modes.txt", arma::raw_ascii);
 
 }
 

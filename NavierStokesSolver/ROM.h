@@ -12,6 +12,7 @@ enum class HYPER_REDUCTION_METHOD {
 	EXACT_TENSOR_DECOMPOSITION,
 	DEIM,
 	SPDEIM,
+	LSDEIM,
 };
 
 //forward declaration of ROM_Solver class
@@ -170,6 +171,58 @@ private:
 
 };
 
+
+
+
+
+//Discrete Empirical Interpolation Method
+class LSDEIM : public Base_hyperReduction
+{
+protected:
+	//number of modes
+	int m_numModes;
+
+	//snapshot data collector
+	const dataCollector<true>& m_collector;
+
+	//measurement space and vector indices
+	arma::SpMat<double> m_P;
+	std::vector<arma::uword> m_indsP;
+	std::vector<std::pair<arma::uword, arma::uword>> m_gridIndsP;
+
+	//DEIM modes
+	arma::Mat<double> m_M;
+
+	//projected DEIM modes
+	arma::Mat<double> m_PsiTM;
+	arma::Mat<double> m_PTM;
+
+	//DEIM modes in measurement space
+	arma::Mat<double> m_PTM_L;
+	arma::Mat<double> m_PTM_U;
+	arma::Mat<double> m_PTM_perm;
+
+public:
+
+	LSDEIM(int numModes, const dataCollector<true>& collector)
+		: Base_hyperReduction(HYPER_REDUCTION_METHOD::LSDEIM),
+		m_numModes(numModes),
+		m_collector(collector)
+	{
+		setupMeasurementSpace();
+	}
+
+	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual void initialize(const ROM_Solver& rom_solver) override;
+
+	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+private:
+
+	void setupMeasurementSpace();
+
+};
 
 
 

@@ -107,7 +107,7 @@ arma::Col<double> solver::poissonSolve(const arma::Col<double>& MV) const {
 }
 
 //only support periodic boundary conditions atm
-arma::Col<double> solver::interpolateVelocity(const arma::Col<double>& vel) {
+arma::Col<double> solver::interpolateVelocity(const arma::Col<double>& vel) const {
 
 	arma::uword num = m_mesh.getNumCellsX() * m_mesh.getNumCellsY();
 
