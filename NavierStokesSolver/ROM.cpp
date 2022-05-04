@@ -109,3 +109,10 @@ double ROM_Solver::nu() const {
 const solver& ROM_Solver::getSolver() const {
 	return m_solver;
 }
+
+double ROM_Solver::getRICs() const {
+
+	std::cout << "implement this!!!" << std::endl;
+
+	return 0.0;
+}

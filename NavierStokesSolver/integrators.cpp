@@ -29,6 +29,8 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 	double nu = solver.nu();
 	double t = 0.0;
 
+	int it = 0;
+
 	while (t < finalT) {
 
 		Us.push_back(Vo);
@@ -57,14 +59,20 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		}
 
+		++it;
+
 		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t <= collectTime) {
+				//if ((it % 4) == 0) {
 				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
 				Base_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.N(Vo));
+				//}
 			}
 		}
 		
 		t = t + dt;
+
+		
 
 		if (abs(finalT - t) < (0.01 * dt)) {
 			std::cout.precision(17);
@@ -400,7 +408,7 @@ arma::Col<double> RelaxationRungeKutta_NS<COLLECT_DATA>::integrate(double finalT
 
 					gamma = (abs(gammaDenom) > 1e-17) ? (2.0 * gammaNom) / gammaDenom : 1.0;
 
-					std::cout << "gamma: " << (2.0 * gammaNom) / gammaDenom << ", denominator: " << gammaDenom << ", numerator: " << gammaNom << std::endl;
+					//std::cout << "gamma: " << (2.0 * gammaNom) / gammaDenom << ", denominator: " << gammaDenom << ", numerator: " << gammaNom << std::endl;
 
 					V += gamma * dt * m_tableau.b[j] * Fs[j];
 				}
@@ -837,7 +845,7 @@ arma::Col<double> RelaxationRungeKutta_ROM<COLLECT_DATA>::integrate(double final
 
 					gamma = (abs(gammaDenom) > 1e-17) ? (2.0 * gammaNom) / gammaDenom : 1.0;
 
-					std::cout << "gamma: " << (2.0 * gammaNom) / gammaDenom << ", denominator: " << gammaDenom << ", numerator: " << gammaNom << std::endl;
+					//std::cout << "gamma: " << (2.0 * gammaNom) / gammaDenom << ", denominator: " << gammaDenom << ", numerator: " << gammaNom << std::endl;
 
 					a += gamma * dt * m_tableau.b[j] * Fs[j];
 				}

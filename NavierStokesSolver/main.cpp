@@ -28,7 +28,7 @@ int main() {
 
 #ifdef FOM_CODE
 
-	mesh Mesh(100, 100, 2 * PI, 2 * PI);  //(400, 400, 1.0, 1.0);
+	mesh Mesh(99, 99, 2 * PI, 2 * PI); //(400, 400, 1.0, 1.0); 
 
 	//solver has to check 2x (UL or LR) Periodic is given, otherwise throw error 
 	solver Solver(
@@ -75,24 +75,26 @@ int main() {
 
 #ifdef ROM_CODE
 
-	int numModesPOD = 30;
-	int numModesDEIM = 40;
+	int numModesPOD = 29;
+	int numModesDEIM = 30;
 
 	//noHyperReduction hyperReduction;
 
-	//DEIM hyperReduction(numModesDEIM, RK.getDataCollector());
+	DEIM hyperReduction(numModesDEIM, RK.getDataCollector());
 
 	//SPDEIM hyperReduction(numModesDEIM, RK.getDataCollector());
 
-	LSDEIM hyperReduction(numModesDEIM, RK.getDataCollector());
+	//LSDEIM hyperReduction(numModesDEIM, RK.getDataCollector());
 
 	ROM_Solver RomSolver(Solver, RK.getDataCollector(), numModesPOD, hyperReduction);
 
 	//ExplicitRungeKutta_ROM<false> RKr(ButcherTableaus::RK4());
 
-	//ImplicitRungeKutta_ROM<false> RKr(ButcherTableaus::implicitMidpoint(), LINEAR_SOLVER::DIRECT);
+	ImplicitRungeKutta_ROM<false> RKr(ButcherTableaus::GL4(), LINEAR_SOLVER::DIRECT);
 
-	RelaxationRungeKutta_ROM<false> RKr(ButcherTableaus::RK4());
+	//RelaxationRungeKutta_ROM<false> RKr(ButcherTableaus::RK4());
+
+	RomSolver.getRICs();
 
 	arma::Col<double> a		= RomSolver.calculateIC(velInit);
 	arma::Col<double> aInit = a;

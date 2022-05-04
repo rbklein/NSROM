@@ -202,6 +202,12 @@ protected:
 	arma::Mat<double> m_PTM_U;
 	arma::Mat<double> m_PTM_perm;
 
+	//jacobian precalculation matrices
+	arma::Mat<double> m_M1;
+	arma::Mat<double> m_M2;
+	arma::Mat<double> m_M3;
+	arma::Mat<double> m_M4;
+
 public:
 
 	LSDEIM(int numModes, const dataCollector<true>& collector)
@@ -278,6 +284,8 @@ public:
 	double nu() const;
 
 	const solver& getSolver() const;
+
+	double getRICs() const;
 
 private:
 

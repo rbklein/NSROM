@@ -144,8 +144,18 @@ std::pair<arma::uword, arma::uword> solver::vectorToGridIndex(arma::uword vector
 	for (arma::uword i = m_mesh.getStartIndUy(); i < m_mesh.getEndIndUy(); ++i) {
 		for (arma::uword j = m_mesh.getStartIndUx(); j < m_mesh.getEndIndUx(); ++j) {
 
-			if (CellsU(i, j).vectorIndex == vectorInd)
+			if (CellsU(i, j).vectorIndex == vectorInd) {
+
+				if (CellsU(i, j).onBoundary) {
+					std::cout << "U deim point " << vectorInd << "  on boundary..." << std::endl;
+					for (auto datum : CellsU(i, j).boundaryData) {
+						std::cout << datum.boundaryDir << std::endl;
+					}
+				}
+				
 				return { i, j };
+			}
+				
 
 		}
 	}
@@ -153,8 +163,17 @@ std::pair<arma::uword, arma::uword> solver::vectorToGridIndex(arma::uword vector
 	for (arma::uword i = m_mesh.getStartIndVy(); i < m_mesh.getEndIndVy(); ++i) {
 		for (arma::uword j = m_mesh.getStartIndVx(); j < m_mesh.getEndIndVx(); ++j) {
 
-			if (CellsV(i, j).vectorIndex == vectorInd)
+			if (CellsV(i, j).vectorIndex == vectorInd) {
+
+				if (CellsV(i, j).onBoundary) {
+					std::cout << "V deim point " << vectorInd << " on boundary..." << std::endl;
+					for (auto datum : CellsV(i, j).boundaryData) {
+						std::cout << datum.boundaryDir << std::endl;
+					}
+				}
+
 				return { i, j };
+			}
 
 		}
 	}

@@ -305,12 +305,16 @@ void LSDEIM::setupMeasurementSpace() {
 	//declare c vector
 	arma::Col<double> c;
 
-	for (arma::uword i = 1; i < m_numModes; ++i) {
+	std::vector<arma::uword> lol = { 10, 18 };
+	std::vector<arma::uword> lmao = { 9965, 18899 };
+
+	for (arma::uword i = 1; i < (m_numModes); ++i) {
 		//equate next column and previous modes in measurement space (not sure why this does not solve for m_numModes components, but it seems to work)
 		c = arma::solve(m_P.t() * MFull.cols(0, i - 1), (m_P.t() * MFull.col(i)).as_col());
 
 		//find index of max absolute difference in FOM space
 		ind = arma::abs(MFull.col(i) - MFull.cols(0, i - 1) * c).index_max();
+
 		m_indsP.push_back(ind);
 
 		//update measurement space
@@ -320,8 +324,13 @@ void LSDEIM::setupMeasurementSpace() {
 	//define deim modes
 	m_M = MFull.cols(0, m_numModes - 1);
 
+
 	//lu decompose deim modes in measurement space for fast inversion
 	arma::lu(m_PTM_L, m_PTM_U, m_PTM_perm, 2.0 * (m_P.t() * m_M).t() * (m_P.t() * m_M));
+
+	m_PTM = m_P.t() * m_M;
+
+	m_M1 = 2.0 * arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * m_PTM.t()));
 
 }
 
@@ -369,12 +378,48 @@ void LSDEIM::initialize(const ROM_Solver& rom_solver) {
 
 	m_PsiTM = rom_solver.Psi().t() * m_M;
 
-	m_PTM = m_P.t() * m_M;
+	m_M2 = m_PsiTM * m_M1;
+
+	m_M4 = arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * m_PsiTM.t()));
+
+	m_M3 = m_PsiTM * m_M4;
 }
 
 arma::Mat<double> LSDEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
 
-	throw std::runtime_error("not implemented");
+	arma::Mat<double> PTJPsi;
 
-	return arma::Mat<double>();
+	for (int m = 0; m < m_numModes; ++m) {
+		PTJPsi = arma::join_cols(PTJPsi, rom_solver.Jindex(a, m_indsP[m], m_gridIndsP[m].first, m_gridIndsP[m].second));
+	}
+
+	arma::Col<double> PTN(m_numModes);
+
+	for (int i = 0; i < m_numModes; ++i) {
+		PTN(i) = rom_solver.Nindex(a, m_indsP[i], m_gridIndsP[i].first, m_gridIndsP[i].second);
+	}
+
+	double alfa = arma::as_scalar(a.t() * m_M3 * a);
+	double beta = arma::as_scalar(a.t() * m_M2 * PTN);
+	double gamma = beta / alfa;
+
+	//std::cout << "1" << std::endl;
+
+	arma::Mat<double> output = m_M1 * PTJPsi;
+
+	//std::cout << "2" << std::endl;
+
+	output -= gamma * m_M4;
+
+	//std::cout << "3" << std::endl;
+
+	arma::Col<double> v1 = (1.0 / alfa) * (m_M2 * PTN + (a.t() * m_M2 * PTJPsi).t()) - gamma / alfa * (m_M3 * a + (a.t() * m_M3).t());
+
+	//std::cout << "4" << std::endl;
+
+	output -= m_M4 * a * v1.t();
+
+	//std::cout << "5" << std::endl;
+
+	return m_PsiTM * output;
 }
