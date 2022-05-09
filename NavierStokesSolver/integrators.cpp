@@ -10,6 +10,7 @@
 #include "iterative.h"
 
 #define CALCULATE_ENERGY
+//#define PRINT_TIME
 
 template<bool COLLECT_DATA>
 arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const solver& solver, double collectTime) {
@@ -63,10 +64,8 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t <= collectTime) {
-				//if ((it % 4) == 0) {
 				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
 				Base_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.N(Vo));
-				//}
 			}
 		}
 		
@@ -103,7 +102,9 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 		//std::cout << Vo.max() << std::endl;
 
-		std::cout << t << std::endl;
+#ifdef PRINT_TIME
+		std::cout << "time: " << t << std::endl;
+#endif
 
 	}
 
@@ -320,7 +321,9 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		}
 
 
+#ifdef PRINT_TIME
 		std::cout << "time: " << t << std::endl;
+#endif
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * solver.Om() * Vo));
@@ -461,7 +464,9 @@ arma::Col<double> RelaxationRungeKutta_NS<COLLECT_DATA>::integrate(double finalT
 
 		//std::cout << Vo.max() << std::endl;
 
-		std::cout << t << std::endl;
+#ifdef PRINT_TIME
+		std::cout << "time: " << t << std::endl;
+#endif
 
 	}
 
@@ -535,16 +540,18 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			as.push_back(a);
 		}
 
+		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
+			if (t <= collectTime) {
+				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
+				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.getSolver().N(solver.Psi() * ao));
+			}
+		}
+
 		ao = as.back();
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(ao.t() * ao));
 #endif
-
-		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
-			if (t < collectTime)
-				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
-		}
 
 
 		as.clear();
@@ -552,7 +559,9 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		t = t + dt;
 
-		std::cout << t << std::endl;
+#ifdef PRINT_TIME
+		std::cout << "time: " << t << std::endl;
+#endif
 	}
 
 #ifdef CALCULATE_ENERGY
@@ -664,7 +673,7 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 				break;
 			}
 
-			std::cout << "iteration error: " << arma::norm(stagesNext - stagesPrev, 2) << std::endl;
+			//std::cout << "iteration error: " << arma::norm(stagesNext - stagesPrev, 2) << std::endl;
 
 			++it;
 
@@ -679,13 +688,6 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		prevVo = Vo;
 
-		for (int k = 0; k < m_tableau.s; ++k) {
-			Vo += dt * m_tableau.b[k] * (-solver.Nr(getStage(stagesNext, k + 1)) + nu * solver.Dr() * getStage(stagesNext, k + 1));
-		}
-
-		stagesNext = arma::repmat(arma::Mat<double>(Vo), m_tableau.s, 1).as_col();
-
-
 		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t <= collectTime) {
 				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
@@ -693,13 +695,19 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			}
 		}
 
+		for (int k = 0; k < m_tableau.s; ++k) {
+			Vo += dt * m_tableau.b[k] * (-solver.Nr(getStage(stagesNext, k + 1)) + nu * solver.Dr() * getStage(stagesNext, k + 1));
+		}
+
+		stagesNext = arma::repmat(arma::Mat<double>(Vo), m_tableau.s, 1).as_col();
+
 		t = t + dt;
 
 		if (abs(finalT - t) < (0.01 * dt)) {
 			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
-			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+			arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
 #endif
 			return Vo;
 		}
@@ -708,58 +716,16 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
-			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+			arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
 #endif
 			return prevVo;
 		}
 		//}
 
-			std::cout << "time: " << t << std::endl;
+#ifdef PRINT_TIME
+		std::cout << "time: " << t << std::endl;
+#endif
 		
-		/*
-		else {
-
-			std::cout << "MAX ITERATIONS EXCEEDED, REFINING GUESS WITH PICARD ITERATIONS..." << std::endl;
-
-			it = 0;
-
-			stagesNext = arma::repmat(arma::Mat<double>(Vo), m_tableau.s, 1).as_col();
-
-			//solve...
-			do {
-
-				stagesPrev = stagesNext;
-
-				S = Is; // + dFdu;
-				//dFdu.reset();
-
-				for (int k = 1; k < (m_tableau.s + 1); ++k) {
-
-					//operatorEval.subvec((k - 1) * numU, k * numU - 1) = dt * (-solver.Nr(getStage(stagesPrev, k)) + solver.Jr(getStage(stagesPrev, k)) * getStage(stagesPrev, k));
-
-					operatorEval.subvec((k - 1)* numU, k* numU - 1) = dt * (-solver.Nr(getStage(stagesPrev, k)) + nu * solver.Dr() * getStage(stagesPrev, k));
-
-				}
-
-				rhs = arma::repmat(arma::Mat<double>(Vo), m_tableau.s, 1).as_col() + as * operatorEval;
-
-				switch (m_solver) {
-				case(LINEAR_SOLVER::DIRECT):
-
-					stagesNext = rhs;
-
-					break;
-				}
-
-				std::cout << "iteration error: " << arma::norm(stagesNext - stagesPrev, 2) << std::endl;
-
-				++it;
-
-			} while (arma::norm(stagesNext - stagesPrev, 2) > 1e-14 && it < 10000);
-
-			it = 0;
-		}
-		*/
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * Vo));
@@ -768,7 +734,7 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 	}
 
 #ifdef CALCULATE_ENERGY
-	arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+	arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
 #endif
 
 	//arma::Mat<double>(S).save("matrix.txt", arma::raw_ascii);
@@ -855,24 +821,27 @@ arma::Col<double> RelaxationRungeKutta_ROM<COLLECT_DATA>::integrate(double final
 			as.push_back(a);
 		}
 
+		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
+			if (t <= collectTime) {
+				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
+				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.Nr(ao));
+			}
+		}
+
 		ao = as.back();
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(ao.t() * ao));
 #endif
 
-		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
-			if (t < collectTime)
-				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
-		}
-
-
 		as.clear();
 		Fs.clear();
 
 		t = t + gamma * dt;
 
-		std::cout << t << std::endl;
+#ifdef PRINT_TIME
+		std::cout << "time: " << t << std::endl;
+#endif
 	}
 
 #ifdef CALCULATE_ENERGY
@@ -884,3 +853,12 @@ arma::Col<double> RelaxationRungeKutta_ROM<COLLECT_DATA>::integrate(double final
 
 template arma::Col<double> RelaxationRungeKutta_ROM<false>::integrate(double finalT, double dt, const arma::Col<double>& initialA, const arma::Col<double>& initialP, const ROM_Solver& solver, double collectTime);
 template arma::Col<double> RelaxationRungeKutta_ROM<true>::integrate(double finalT, double dt, const arma::Col<double>& initialA, const arma::Col<double>& initialP, const ROM_Solver& solver, double collectTime);
+
+
+template<bool COLLECT_DATA>
+const dataCollector<COLLECT_DATA>& Base_ROM_Integrator<COLLECT_DATA>::getDataCollector() const {
+	return m_collector;
+}
+
+template const dataCollector<true>& Base_ROM_Integrator<true>::getDataCollector() const;
+template const dataCollector<false>& Base_ROM_Integrator<false>::getDataCollector() const;

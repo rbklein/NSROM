@@ -9,6 +9,8 @@
 
 //CHECK THIS: MODES ARE NOT ALWAYS DIVERGENCE FREE!!!
 
+#define LOAD_DATA
+
 //make modes omega-orthogonal and momentum conserving (divergence-free automatically) 
 //IMPORTANT: realize -> momentum conserving modes are also divergence-free!!
 void ROM_Solver::setupBasis() {
@@ -38,6 +40,8 @@ void ROM_Solver::setupBasis() {
 
 	arma::Mat<double> E = arma::join_rows(Eu, Ev);
 
+#ifndef LOAD_DATA
+
 	arma::Mat<double> PsiFull, _;
 	arma::Col<double> singularValues;
 
@@ -53,7 +57,21 @@ void ROM_Solver::setupBasis() {
 	//perform svd of scaled snapshots
 	arma::svd_econ(PsiFull, singularValues, _, scaledSnapshotData, "left", "std");
 
+	if (m_savePhi)
+		PsiFull.save("PsiFull.bin", arma::arma_binary);
+
 	singularValues.save("pod_sing_vals.txt", arma::raw_ascii);
+
+	m_RIC = arma::sum(singularValues.rows(0, m_numModesPOD - 1)) / arma::sum(singularValues);
+
+	std::cout << "POD RIC: " << m_RIC * 100.0 << "% " << std::endl;
+
+#else
+
+	arma::Mat<double> PsiFull;
+	PsiFull.load("PsiFull.bin", arma::arma_binary);
+
+#endif
 
 	//add momentum conserving modes
 	m_Psi.insert_cols(0, E);
@@ -63,7 +81,7 @@ void ROM_Solver::setupBasis() {
 		m_Psi.insert_cols(m_Psi.n_cols, arma::sqrt(m_solver.OmInv()) * PsiFull.col(i));
 	}
 
-	std::cout << (m_solver.M() * m_Psi).max() << " " << (m_solver.M() * m_Psi).min() << std::endl;
+	//std::cout << (m_solver.M() * m_Psi).max() << " " << (m_solver.M() * m_Psi).min() << std::endl;
 
 	arma::Mat<double> modes;
 
@@ -108,11 +126,4 @@ double ROM_Solver::nu() const {
 
 const solver& ROM_Solver::getSolver() const {
 	return m_solver;
-}
-
-double ROM_Solver::getRICs() const {
-
-	std::cout << "implement this!!!" << std::endl;
-
-	return 0.0;
 }

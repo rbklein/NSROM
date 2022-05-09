@@ -118,7 +118,7 @@ public:
 	virtual arma::Col<double> integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const ROM_Solver& solver, double collectTime = 0.0) = 0;
 
 	//make this so that you can only call it with if constexpr (COLLECT_DATA == true) else throw error
-	//const dataCollector<COLLECT_DATA>& getDataCollector() const;
+	const dataCollector<COLLECT_DATA>& getDataCollector() const;
 
 };
 

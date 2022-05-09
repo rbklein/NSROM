@@ -34,6 +34,8 @@ public:
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
 
+	virtual arma::Col<double> N(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
+
 	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const = 0;
 
 	virtual void initialize(const ROM_Solver& rom_solver) = 0;
@@ -54,6 +56,8 @@ public:
 	{}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Col<double> N(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
@@ -91,17 +95,25 @@ protected:
 	arma::Mat<double> m_PTM_U;
 	arma::Mat<double> m_PTM_perm;
 
+	//RIC value
+	double m_RIC;
+
+	bool m_saveM;
+
 public:
 
-	DEIM(int numModes, const dataCollector<true>& collector)
+	DEIM(int numModes, const dataCollector<true>& collector, bool saveM = false)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::DEIM),
 		m_numModes(numModes),
-		m_collector(collector)
+		m_collector(collector),
+		m_saveM(saveM)
 	{
 		setupMeasurementSpace();
 	}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Col<double> N(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual void initialize(const ROM_Solver& rom_solver) override;
 
@@ -149,17 +161,25 @@ protected:
 	//the m_numModes^th DEIM mode times inverse of Mp
 	arma::Col<double> m_MpiMm;
 
+	//RIC value
+	double m_RIC;
+
+	bool m_saveM;
+
 public:
 
-	SPDEIM(int numModes, const dataCollector<true>& collector)
+	SPDEIM(int numModes, const dataCollector<true>& collector, bool saveM = false)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::SPDEIM),
 		m_numModes(numModes),
-		m_collector(collector)
+		m_collector(collector),
+		m_saveM(saveM)
 	{
 		setupMeasurementSpace();
 	}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Col<double> N(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
@@ -181,6 +201,7 @@ class LSDEIM : public Base_hyperReduction
 protected:
 	//number of modes
 	int m_numModes;
+	int m_numPoints;
 
 	//snapshot data collector
 	const dataCollector<true>& m_collector;
@@ -208,17 +229,29 @@ protected:
 	arma::Mat<double> m_M3;
 	arma::Mat<double> m_M4;
 
+	//RIC value
+	double m_RIC;
+
+	//deim departure
+	arma::Col<double> m_deimDeparture;
+	
+	bool m_saveM;
+
 public:
 
-	LSDEIM(int numModes, const dataCollector<true>& collector)
+	LSDEIM(int numModes, int numPoints, const dataCollector<true>& collector, bool saveM = false)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::LSDEIM),
 		m_numModes(numModes),
-		m_collector(collector)
+		m_numPoints(numPoints),
+		m_collector(collector),
+		m_saveM(saveM)
 	{
 		setupMeasurementSpace();
 	}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	virtual arma::Col<double> N(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
 
 	virtual void initialize(const ROM_Solver& rom_solver) override;
 
@@ -255,13 +288,19 @@ private:
 	//hyper reduction algorithm
 	Base_hyperReduction& m_hyperReduction;
 
+	//RIC value
+	double m_RIC;
+
+	bool m_savePhi;
+
 public:
 
-	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD, Base_hyperReduction& hyperReduction)
+	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD, Base_hyperReduction& hyperReduction, bool savePhi = false)
 		:	m_solver(solver),
 			m_dataCollector(dataCollector),
 			m_numModesPOD(numModesPOD),
-			m_hyperReduction(hyperReduction)
+			m_hyperReduction(hyperReduction),
+			m_savePhi(savePhi)
 	{
 		setupBasis();
 
@@ -284,8 +323,6 @@ public:
 	double nu() const;
 
 	const solver& getSolver() const;
-
-	double getRICs() const;
 
 private:
 
