@@ -1,11 +1,12 @@
 #include <iostream>
 #include <armadillo>
+#include <algorithm>
 
 #include "mesh.h"
 #include "solver.h"
 #include "ROM.h"
 
-#define LOAD_DATA
+//#define LOAD_DATA
 
 HYPER_REDUCTION_METHOD Base_hyperReduction::getType() const {
 	return m_method;
@@ -27,12 +28,35 @@ void noHyperReduction::initialize(const ROM_Solver& rom_solver) {
 	//no initialization steps necessary
 }
 
+int generateNumber(const std::vector<arma::uword>& vec) {
+	//std::random_device rd;
+	//std::default_random_engine generator(rd());
+	std::default_random_engine generator;
+	std::uniform_int_distribution<> distribution(0, 2 * 256 * 256 - 1);
+	bool found = false;
+	int number;
+	while (!found) {
+		number = distribution(generator);
+		found = true;
+		for (auto it : vec) {
+			if (it == number) {
+				found = false;
+				break;
+			}
+		}
+	}
+	return number;
+}
+
 void DEIM::setupMeasurementSpace() {
 
 #ifndef LOAD_DATA
 
 	//get reference to data matrix
 	const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
+
+	//arma::Mat<double> operatorMatrix;
+	//operatorMatrix.load("operator_snapshots_slr");  //.load("operator_snapshots_slr_Re100");  //.load("operator_snapshots_2dturb_" + std::to_string(m_datasetIndex)); //
 
 	//declare singular vectors and singular values
 	arma::Mat<double> MFull, _;
@@ -54,6 +78,13 @@ void DEIM::setupMeasurementSpace() {
 
 	arma::Mat<double> MFull;
 	MFull.load("MFull.bin", arma::arma_binary);
+
+	arma::Col<double> singularValues;
+	singularValues.load("deim_sing_vals.txt", arma::raw_ascii);
+
+	m_RIC = arma::accu(singularValues.rows(0, m_numModes - 1)) / arma::accu(singularValues);
+
+	std::cout << "DEIM RIC: " << m_RIC * 100.0 << "% " << std::endl;
 
 #endif
 
@@ -165,7 +196,10 @@ void SPDEIM::setupMeasurementSpace() {
 #ifndef LOAD_DATA
 
 	//get reference to data matrix
-	const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
+	//const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
+
+	arma::Mat<double> operatorMatrix;
+	operatorMatrix.load("operator_snapshots_slr_Re100"); //.load("operator_snapshots_2dturb_" + std::to_string(m_datasetIndex));  //
 
 	//declare singular vectors and singular values
 	arma::Mat<double> MFull, _;
@@ -181,14 +215,23 @@ void SPDEIM::setupMeasurementSpace() {
 
 	m_RIC = arma::accu(singularValues.rows(0, m_numModes - 1)) / arma::accu(singularValues);
 
-	std::cout << "SPDEIM RIC: " << m_RIC * 100.0 << "% " << std::endl;
+	std::cout << "SMDEIM RIC: " << m_RIC * 100.0 << "% " << std::endl;
 
 #else
 
 	arma::Mat<double> MFull;
 	MFull.load("MFull.bin", arma::arma_binary);
 
+	arma::Col<double> singularValues;
+	singularValues.load("deim_sing_vals.txt", arma::raw_ascii);
+
+	m_RIC = arma::accu(singularValues.rows(0, m_numModes - 1)) / arma::accu(singularValues);
+
+	std::cout << "SMDEIM RIC: " << m_RIC * 100.0 << "% " << std::endl;
+
 #endif
+
+	auto t1 = std::chrono::high_resolution_clock::now();
 
 	//get amount of unknowns
 	arma::uword n = MFull.n_rows;
@@ -229,6 +272,10 @@ void SPDEIM::setupMeasurementSpace() {
 	arma::lu(m_Mp_L, m_Mp_U, m_Mp_perm, m_PTM.cols(0, m_numModes - 2));
 
 	m_MpiMm = arma::solve(arma::trimatu(m_Mp_U), arma::solve(arma::trimatl(m_Mp_L), m_Mp_perm * m_PTM.col(m_numModes-1)));
+
+	auto t2 = std::chrono::high_resolution_clock::now();
+
+	std::cout << "Precomputing (1) Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms" << std::endl;
 
 }
 
@@ -335,14 +382,6 @@ arma::Mat<double> SPDEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_
 
 void SPDEIM::initialize(const ROM_Solver& rom_solver) {
 
-	arma::Mat<double> modes;
-
-	for (int k = 0; k < m_numModes; ++k) {
-		modes = arma::join_rows(modes, rom_solver.getSolver().interpolateVelocity(m_M.col(k)));
-	}
-
-	modes.save("deim_modes.txt", arma::raw_ascii);
-
 	for (arma::uword ind : m_indsP) {
 		m_gridIndsP.push_back(rom_solver.getSolver().vectorToGridIndex(ind));
 	}
@@ -359,7 +398,10 @@ void LSDEIM::setupMeasurementSpace() {
 #ifndef LOAD_DATA
 
 	//get reference to data matrix
-	const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
+	//const arma::Mat<double>& operatorMatrix = m_collector.getOperatorMatrix();
+
+	arma::Mat<double> operatorMatrix;
+	operatorMatrix.load("operator_snapshots_2dturb_" + std::to_string(m_datasetIndex));  //.load("operator_snapshots_slr_Re100"); //
 
 	//declare singular vectors and singular values
 	arma::Mat<double> MFull, _;
@@ -382,7 +424,16 @@ void LSDEIM::setupMeasurementSpace() {
 	arma::Mat<double> MFull;
 	MFull.load("MFull.bin", arma::arma_binary);
 
+	arma::Col<double> singularValues;
+	singularValues.load("deim_sing_vals.txt", arma::raw_ascii);
+
+	m_RIC = arma::accu(singularValues.rows(0, m_numModes - 1)) / arma::accu(singularValues);
+
+	std::cout << "LSDEIM RIC: " << m_RIC * 100.0 << "% " << std::endl;
+
 #endif
+
+	auto t1 = std::chrono::high_resolution_clock::now();
 
 	//get amount of unknowns
 	arma::uword n = MFull.n_rows;
@@ -401,10 +452,9 @@ void LSDEIM::setupMeasurementSpace() {
 	//declare c vector
 	arma::Col<double> c;
 
-	//std::vector<arma::uword> lol = { 10, 18 };
-	//std::vector<arma::uword> lmao = { 9965, 18899 };
+	int index_p = (m_numPoints > MFull.n_cols) ? MFull.n_cols : m_numPoints;
 
-	for (arma::uword i = 1; i < (m_numPoints); ++i) {
+	for (arma::uword i = 1; i < index_p; ++i) {
 		//equate next column and previous modes in measurement space (not sure why this does not solve for m_numModes components, but it seems to work)
 		c = arma::solve(m_P.t() * MFull.cols(0, i - 1), (m_P.t() * MFull.col(i)).as_col());
 
@@ -414,6 +464,15 @@ void LSDEIM::setupMeasurementSpace() {
 		m_indsP.push_back(ind);
 
 		//update measurement space
+		m_P(ind, i) = 1.0;
+	}
+
+	for (int i = index_p; i < m_numPoints; ++i) {
+
+		ind = generateNumber(m_indsP);
+
+		m_indsP.push_back(ind);
+
 		m_P(ind, i) = 1.0;
 	}
 
@@ -427,21 +486,22 @@ void LSDEIM::setupMeasurementSpace() {
 
 	m_M1 = 2.0 * arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * m_PTM.t()));
 
+	auto t2 = std::chrono::high_resolution_clock::now();
+
+	std::cout << "Precomputing (1) Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms" << std::endl;
+
 }
 
 arma::Col<double> LSDEIM::Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
 
-
 	arma::Col<double> c(m_numModes);
 
-	arma::Col<double> PTN(m_numPoints);
+	arma::Col<double> PTN(m_indsP.size());
 
-	for (int i = 0; i < m_numPoints; ++i) {
+	for (int i = 0; i < m_indsP.size(); ++i) {
 		PTN(i) = rom_solver.Nindex(a, m_indsP[i], m_gridIndsP[i].first, m_gridIndsP[i].second);
 	}
 
-	//c = arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * PTN));
-	
 	arma::Col<double> PTMPTN = 2.0 * m_PTM.t() * PTN;
 
 	arma::Col<double> B = (a.t() * m_PsiTM).t();
@@ -451,8 +511,6 @@ arma::Col<double> LSDEIM::Nrh(const arma::Col<double>& a, const ROM_Solver& rom_
 	arma::Col<double> AiB = arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * B));
 
 	c = AiPTMPTN - arma::as_scalar((B.t() * AiPTMPTN) / (B.t() * AiB)) * AiB;
-
-	//std::cout << "diff operators: " << arma::norm(m_M * c - rom_solver.getSolver().N(rom_solver.Psi() * a), "inf") << std::endl;
 
 	return m_PsiTM * c;
 }
@@ -461,13 +519,11 @@ arma::Col<double> LSDEIM::N(const arma::Col<double>& a, const ROM_Solver& rom_so
 
 	arma::Col<double> c(m_numModes);
 
-	arma::Col<double> PTN(m_numPoints);
+	arma::Col<double> PTN(m_indsP.size());
 
-	for (int i = 0; i < m_numPoints; ++i) {
+	for (int i = 0; i < m_indsP.size(); ++i) {
 		PTN(i) = rom_solver.Nindex(a, m_indsP[i], m_gridIndsP[i].first, m_gridIndsP[i].second);
 	}
-
-	//c = arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * PTN));
 
 	arma::Col<double> PTMPTN = 2.0 * m_PTM.t() * PTN;
 
@@ -479,22 +535,10 @@ arma::Col<double> LSDEIM::N(const arma::Col<double>& a, const ROM_Solver& rom_so
 
 	c = AiPTMPTN - arma::as_scalar((B.t() * AiPTMPTN) / (B.t() * AiB)) * AiB;
 
-	//std::cout << "diff operators: " << arma::norm(m_M * c - rom_solver.getSolver().N(rom_solver.Psi() * a), "inf") << std::endl;
-
 	return m_M * c;
 }
 
 void LSDEIM::initialize(const ROM_Solver& rom_solver) {
-
-	/*
-	arma::Mat<double> modes;
-
-	for (int k = 0; k < m_numModes; ++k) {
-		modes = arma::join_rows(modes, rom_solver.getSolver().interpolateVelocity(m_M.col(k)));
-	}
-
-	modes.save("deim_modes.txt", arma::raw_ascii);
-	*/
 
 	for (arma::uword ind : m_indsP) {
 		m_gridIndsP.push_back(rom_solver.getSolver().vectorToGridIndex(ind));
@@ -507,19 +551,20 @@ void LSDEIM::initialize(const ROM_Solver& rom_solver) {
 	m_M4 = arma::solve(arma::trimatu(m_PTM_U), arma::solve(arma::trimatl(m_PTM_L), m_PTM_perm * m_PsiTM.t()));
 
 	m_M3 = m_PsiTM * m_M4;
+
 }
 
 arma::Mat<double> LSDEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const {
 
 	arma::Mat<double> PTJPsi;
 
-	for (int m = 0; m < m_numPoints; ++m) {
+	for (int m = 0; m < m_indsP.size(); ++m) {
 		PTJPsi = arma::join_cols(PTJPsi, rom_solver.Jindex(a, m_indsP[m], m_gridIndsP[m].first, m_gridIndsP[m].second));
 	}
 
-	arma::Col<double> PTN(m_numPoints);
+	arma::Col<double> PTN(m_indsP.size());
 
-	for (int i = 0; i < m_numPoints; ++i) {
+	for (int i = 0; i < m_indsP.size(); ++i) {
 		PTN(i) = rom_solver.Nindex(a, m_indsP[i], m_gridIndsP[i].first, m_gridIndsP[i].second);
 	}
 
@@ -537,3 +582,46 @@ arma::Mat<double> LSDEIM::Jrh(const arma::Col<double>& a, const ROM_Solver& rom_
 
 	return m_PsiTM * output;
 }
+
+
+
+/*
+
+	const arma::field<cell>& CellsU = rom_solver.getSolver().getMesh().getCellsU();
+	const arma::field<cell>& CellsV = rom_solver.getSolver().getMesh().getCellsV();
+
+	arma::Col<double> Eu = arma::zeros(rom_solver.getSolver().getMesh().getNumU() + rom_solver.getSolver().getMesh().getNumV());
+	arma::Col<double> Ev = arma::zeros(rom_solver.getSolver().getMesh().getNumU() + rom_solver.getSolver().getMesh().getNumV());
+
+	//setup momentum conserving modes
+	for (arma::uword i = rom_solver.getSolver().getMesh().getStartIndUy(); i < rom_solver.getSolver().getMesh().getEndIndUy(); ++i) {
+		for (arma::uword j = rom_solver.getSolver().getMesh().getStartIndUx(); j < rom_solver.getSolver().getMesh().getEndIndUx(); ++j) {
+			Eu(CellsU(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	for (arma::uword i = rom_solver.getSolver().getMesh().getStartIndVy(); i < rom_solver.getSolver().getMesh().getEndIndVy(); ++i) {
+		for (arma::uword j = rom_solver.getSolver().getMesh().getStartIndVx(); j < rom_solver.getSolver().getMesh().getEndIndVx(); ++j) {
+			Ev(CellsV(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	//normalize momentum conserving modes in omega-norm
+	//Eu = (1.0 / sqrt(arma::as_scalar(Eu.t() * rom_solver.getSolver().Om() * Eu))) * Eu;
+	//Ev = (1.0 / sqrt(arma::as_scalar(Ev.t() * rom_solver.getSolver().Om() * Ev))) * Ev;
+
+	arma::Mat<double> E = arma::join_rows(Eu, Ev);
+
+	std::cout << E.t() * rom_solver.getSolver().Om() * rom_solver.Psi() << std::endl;
+	std::cout << E.t() * rom_solver.getSolver().Om() * rom_solver.Psi() * m_PsiTM << std::endl;
+
+	std::cout << E.t() * m_M << std::endl;
+
+	arma::Mat<double> snapshots;
+	snapshots.load("operator_snapshots_slr");
+
+	arma::Mat<double> fommomentum = E.t() * snapshots;
+	std::cout << arma::abs(fommomentum).max() << std::endl;
+
+	//fommomentum.save("fom_momentum.txt", arma::raw_ascii);
+*/

@@ -78,6 +78,7 @@ protected:
 
 	//snapshot data collector
 	const dataCollector<true>& m_collector;
+	int m_datasetIndex;
 
 	//measurement space and vector indices
 	arma::SpMat<double> m_P;
@@ -102,11 +103,12 @@ protected:
 
 public:
 
-	DEIM(int numModes, const dataCollector<true>& collector, bool saveM = false)
+	DEIM(int numModes, const dataCollector<true>& collector, bool saveM = false, int dataset = 0)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::DEIM),
 		m_numModes(numModes),
 		m_collector(collector),
-		m_saveM(saveM)
+		m_saveM(saveM),
+		m_datasetIndex(dataset)
 	{
 		setupMeasurementSpace();
 	}
@@ -138,6 +140,7 @@ protected:
 
 	//snapshot data collector
 	const dataCollector<true>& m_collector;
+	int m_datasetIndex;
 
 	//measurement space and vector indices
 	arma::SpMat<double> m_P;
@@ -168,11 +171,12 @@ protected:
 
 public:
 
-	SPDEIM(int numModes, const dataCollector<true>& collector, bool saveM = false)
+	SPDEIM(int numModes, const dataCollector<true>& collector, bool saveM = false, int dataset = 0)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::SPDEIM),
 		m_numModes(numModes),
 		m_collector(collector),
-		m_saveM(saveM)
+		m_saveM(saveM),
+		m_datasetIndex(dataset)
 	{
 		setupMeasurementSpace();
 	}
@@ -205,6 +209,7 @@ protected:
 
 	//snapshot data collector
 	const dataCollector<true>& m_collector;
+	int m_datasetIndex;
 
 	//measurement space and vector indices
 	arma::SpMat<double> m_P;
@@ -231,20 +236,18 @@ protected:
 
 	//RIC value
 	double m_RIC;
-
-	//deim departure
-	arma::Col<double> m_deimDeparture;
 	
 	bool m_saveM;
 
 public:
 
-	LSDEIM(int numModes, int numPoints, const dataCollector<true>& collector, bool saveM = false)
+	LSDEIM(int numModes, int numPoints, const dataCollector<true>& collector, bool saveM = false, int dataset = 0)
 		: Base_hyperReduction(HYPER_REDUCTION_METHOD::LSDEIM),
 		m_numModes(numModes),
 		m_numPoints(numPoints),
 		m_collector(collector),
-		m_saveM(saveM)
+		m_saveM(saveM),
+		m_datasetIndex(dataset)
 	{
 		setupMeasurementSpace();
 	}
@@ -256,6 +259,14 @@ public:
 	virtual void initialize(const ROM_Solver& rom_solver) override;
 
 	virtual arma::Mat<double> Jrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
+
+	const arma::Mat<double>& M() const {
+		return m_M;
+	}
+
+	const arma::SpMat<double>& P() const {
+		return m_P;
+	}
 
 private:
 
@@ -284,6 +295,7 @@ private:
 
 	//data collector reference
 	const dataCollector<true>& m_dataCollector;
+	int m_datasetIndex;
 
 	//hyper reduction algorithm
 	Base_hyperReduction& m_hyperReduction;
@@ -295,20 +307,27 @@ private:
 
 public:
 
-	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD, Base_hyperReduction& hyperReduction, bool savePhi = false)
+	ROM_Solver(const solver& solver, const dataCollector<true>& dataCollector, int numModesPOD, Base_hyperReduction& hyperReduction, bool savePhi = false, int dataset = 0)
 		:	m_solver(solver),
 			m_dataCollector(dataCollector),
 			m_numModesPOD(numModesPOD),
 			m_hyperReduction(hyperReduction),
-			m_savePhi(savePhi)
+			m_savePhi(savePhi),
+			m_datasetIndex(dataset)
 	{
 		setupBasis();
 
+		auto t1 = std::chrono::high_resolution_clock::now();
+
 		m_hyperReduction.initialize(*this);
+
+		auto t2 = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Precomputing (2) Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms" << std::endl;
 
 		precomputeOperators();
 	}
-		
+
 	arma::Col<double> calculateIC(const arma::Col<double>&) const;
 
 	const arma::Mat<double>& Dr() const;
@@ -323,6 +342,10 @@ public:
 	double nu() const;
 
 	const solver& getSolver() const;
+
+	inline int getDatasetIndex() const {
+		return m_datasetIndex;
+	}
 
 private:
 

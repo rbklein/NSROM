@@ -38,6 +38,9 @@ private:
 	arma::uword m_startIndVx, m_endIndVx, m_startIndVy, m_endIndVy;
 
 public:
+
+	mesh(){}
+
 	mesh(int nCellsX, int nCellsY, double lengthX, double lengthY) 
 			:	m_nCellsX(nCellsX), m_nCellsY(nCellsY), m_lengthX(lengthX), m_lengthY(lengthY),
 				m_uCells(), m_vCells(), m_pCells()

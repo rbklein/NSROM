@@ -1,6 +1,7 @@
 #include <iostream>
 #include <armadillo>
 #include <vector>
+#include <string>
 
 #include <stdexcept>
 
@@ -10,7 +11,9 @@
 #include "iterative.h"
 
 #define CALCULATE_ENERGY
-//#define PRINT_TIME
+#define PRINT_TIME
+
+//#define CALCULATE_ROM_ERROR
 
 template<bool COLLECT_DATA>
 arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const solver& solver, double collectTime) {
@@ -31,6 +34,12 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 	double t = 0.0;
 
 	int it = 0;
+	int itsPerSave = 1250; //1600;//
+	int itsPerSnap = 1; // 25; //
+	int count = 0;
+
+	arma::SpMat<double> OmInvG = solver.OmInv() * solver.G();
+	arma::SpMat<double> nuD = nu * solver.D();
 
 	while (t < finalT) {
 
@@ -40,7 +49,7 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 			V = Vo;
 
-			Fs.push_back(solver.OmInv() * (-solver.N(Us[i]) + nu * solver.D() * Us[i]));
+			Fs.push_back(solver.OmInv() * (-solver.N(Us[i]) + nuD * Us[i]));
 
 			for (int j = 0; j < (i + 1); ++j) {
 
@@ -56,22 +65,34 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 			phi = solver.poissonSolve(MV);
 
-			Us.push_back(V - solver.OmInv() * solver.G() * phi);
+			Us.push_back(V - OmInvG * phi);
 
-		}
-
-		++it;
-
-		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
-			if (t <= collectTime) {
-				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Vo);
-				Base_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.N(Vo));
-			}
 		}
 		
+		++it;
 		t = t + dt;
 
 		
+		if constexpr (Base_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
+			if (it % itsPerSnap == 0) {
+				Base_Integrator<COLLECT_DATA>::m_collector.addColumn(Us.back());
+				Base_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.N(Us.back()));
+				
+				/*
+				if (it % itsPerSave == 0) {
+					Base_Integrator<COLLECT_DATA>::m_collector.getDataMatrix().save("solution_snapshots_2dturb_" + std::to_string(count + 7), arma::arma_binary);
+					Base_Integrator<COLLECT_DATA>::m_collector.getOperatorMatrix().save("operator_snapshots_2dturb_" + std::to_string(count + 7), arma::arma_binary);
+
+					Base_Integrator<COLLECT_DATA>::m_collector.clearData();
+					Base_Integrator<COLLECT_DATA>::m_collector.clearOperatorData();
+
+					std::cout << "stability check: " << arma::abs(Us.back()).max() << std::endl;
+
+					++count;
+				}
+				*/
+			}
+		}
 
 		if (abs(finalT - t) < (0.01 * dt)) {
 			std::cout.precision(17);
@@ -127,6 +148,32 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 #ifdef CALCULATE_ENERGY
 	std::vector<double> kineticEnergy;
+	
+	arma::Mat<double> momentum;
+
+	std::vector<double> divergence;
+
+	const arma::field<cell>& CellsU = solver.getMesh().getCellsU();
+	const arma::field<cell>& CellsV = solver.getMesh().getCellsV();
+
+	arma::Col<double> Eu = arma::zeros(solver.getMesh().getNumU() + solver.getMesh().getNumV());
+	arma::Col<double> Ev = arma::zeros(solver.getMesh().getNumU() + solver.getMesh().getNumV());
+
+	//setup momentum conserving modes
+	for (arma::uword i = solver.getMesh().getStartIndUy(); i < solver.getMesh().getEndIndUy(); ++i) {
+		for (arma::uword j = solver.getMesh().getStartIndUx(); j < solver.getMesh().getEndIndUx(); ++j) {
+			Eu(CellsU(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	for (arma::uword i = solver.getMesh().getStartIndVy(); i < solver.getMesh().getEndIndVy(); ++i) {
+		for (arma::uword j = solver.getMesh().getStartIndVx(); j < solver.getMesh().getEndIndVx(); ++j) {
+			Ev(CellsV(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	arma::Mat<double> E = arma::join_rows(Eu, Ev);
+
 #endif
 
 	arma::uword numU = solver.getMesh().getNumU() + solver.getMesh().getNumV();
@@ -307,6 +354,8 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+			momentum.save("fom_momentum.txt", arma::raw_ascii);
+			arma::Col<double>(divergence).save("fom_divergence.txt", arma::raw_ascii);
 #endif
 			return Vo;
 		}
@@ -316,6 +365,8 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+			momentum.save("fom_momentum.txt", arma::raw_ascii);
+			arma::Col<double>(divergence).save("fom_divergence.txt", arma::raw_ascii);
 #endif
 			return prevVo;
 		}
@@ -327,12 +378,17 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * solver.Om() * Vo));
+		arma::Col<double> e = E.t() * solver.Om() * Vo;
+		momentum = arma::join_rows(momentum, e);
+		divergence.push_back(arma::norm(solver.M() * Vo, "inf"));
 #endif
 
 	}
 
 #ifdef CALCULATE_ENERGY
 	arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
+	momentum.save("fom_momentum.txt", arma::raw_ascii);
+	arma::Col<double>(divergence).save("fom_divergence.txt", arma::raw_ascii);
 #endif
 
 	//arma::Mat<double>(S).save("matrix.txt", arma::raw_ascii);
@@ -507,6 +563,60 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 #ifdef CALCULATE_ENERGY
 	std::vector<double> kineticEnergy;
+	std::vector<double> enstrophy;
+	double dx, dy;
+
+	dx = dy = solver.getSolver().getMesh().getCellsP()(0, 0).dx;
+
+	arma::Mat<double> vortmat;
+
+	for (int i = 0; i < solver.Psi().n_cols; ++i) {
+		vortmat = arma::join_rows(vortmat, solver.getSolver().vorticity(solver.Psi().col(i)));
+	}
+
+	vortmat = dx * dy * vortmat.t() * vortmat;
+
+	
+	arma::Mat<double> momentum;
+
+	const arma::field<cell>& CellsU = solver.getSolver().getMesh().getCellsU();
+	const arma::field<cell>& CellsV = solver.getSolver().getMesh().getCellsV();
+
+	arma::Col<double> Eu = arma::zeros(solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV());
+	arma::Col<double> Ev = arma::zeros(solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV());
+
+	//setup momentum conserving modes
+	for (arma::uword i = solver.getSolver().getMesh().getStartIndUy(); i < solver.getSolver().getMesh().getEndIndUy(); ++i) {
+		for (arma::uword j = solver.getSolver().getMesh().getStartIndUx(); j < solver.getSolver().getMesh().getEndIndUx(); ++j) {
+			Eu(CellsU(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	for (arma::uword i = solver.getSolver().getMesh().getStartIndVy(); i < solver.getSolver().getMesh().getEndIndVy(); ++i) {
+		for (arma::uword j = solver.getSolver().getMesh().getStartIndVx(); j < solver.getSolver().getMesh().getEndIndVx(); ++j) {
+			Ev(CellsV(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	arma::Mat<double> E = arma::join_rows(Eu, Ev);
+
+	arma::Mat<double> momMat = E.t() * solver.getSolver().Om() * solver.Psi();
+
+	//momMat.cols(2, momMat.n_cols - 1) = arma::Mat<double>(2, momMat.n_cols - 2, arma::fill::zeros);
+	
+	//std::cout << solver.Psi() << std::endl;
+#endif
+
+#ifdef CALCULATE_ROM_ERROR
+
+	arma::Mat<double> fom_snapshots;
+	fom_snapshots.load("solution_snapshots_slr");
+	std::vector<double> errornorms;
+	std::vector<double> idealnorms;
+	int numm = solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV();
+	arma::uword snapcounter = 0;
+	arma::Col<double> _;
+	arma::Col<double> __;
 #endif
 
 	std::vector<arma::Col<double>> as;
@@ -514,6 +624,13 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 	arma::Col<double> ao = initialA;
 	arma::Col<double> a;
+
+#ifdef CALCULATE_ENERGY
+	kineticEnergy.push_back(0.5 * arma::as_scalar(ao.t() * ao));
+	enstrophy.push_back(arma::as_scalar(ao.t() * vortmat * ao));
+
+	momentum = arma::join_rows(momentum, momMat * ao);
+#endif
 
 	double nu = solver.nu();
 	double t = 0.0;
@@ -547,10 +664,25 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			}
 		}
 
+#ifdef CALCULATE_ROM_ERROR
+
+		errornorms.push_back(arma::norm(arma::sqrt(solver.getSolver().Om()) * (solver.Psi() * as.back() - fom_snapshots.col(snapcounter))));
+		_ = solver.getSolver().Om() * fom_snapshots.col(snapcounter);
+		__ = solver.Psi().t() * _;
+		_ = solver.Psi() * __;
+		__ = arma::speye(numm, numm) * fom_snapshots.col(snapcounter);
+		idealnorms.push_back(arma::norm(arma::sqrt(solver.getSolver().Om()) * (__ - _)));
+		++snapcounter;
+
+#endif
+
 		ao = as.back();
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(ao.t() * ao));
+		enstrophy.push_back(arma::as_scalar(ao.t() * vortmat * ao));
+
+		momentum = arma::join_rows(momentum, momMat * ao);
 #endif
 
 
@@ -559,13 +691,57 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		t = t + dt;
 
+		if (abs(finalT - t) < (0.01 * dt)) {
+			std::cout.precision(17);
+			std::cout << t << std::endl;
+#ifdef CALCULATE_ROM_ERROR
+
+			arma::Col<double>(errornorms).save("RK4_error_norm.txt", arma::raw_ascii);
+			arma::Col<double>(idealnorms).save("RK4_ideal_norm.txt", arma::raw_ascii);
+			
+#endif
+#ifdef CALCULATE_ENERGY
+			arma::Col<double>(kineticEnergy).save("RK4_rom_kinetic_energy_" + std::to_string(solver.getDatasetIndex()) + ".txt", arma::raw_ascii);
+			arma::Col<double>(enstrophy).save("RK4_rom_enstrophy_" + std::to_string(solver.getDatasetIndex()) + ".txt", arma::raw_ascii);
+			momentum.save("RK4_rom_momentum.txt", arma::raw_ascii);
+#endif
+			return ao;
+		}
+
+		if (t > finalT) {
+			std::cout.precision(17);
+			std::cout << t << std::endl;
+#ifdef CALCULATE_ROM_ERROR
+
+			arma::Col<double>(errornorms).save("RK4_error_norm.txt", arma::raw_ascii);
+			arma::Col<double>(idealnorms).save("RK4_ideal_norm.txt", arma::raw_ascii);
+
+#endif
+#ifdef CALCULATE_ENERGY
+			arma::Col<double>(kineticEnergy).save("RK4_rom_kinetic_energy_" + std::to_string(solver.getDatasetIndex()) + ".txt", arma::raw_ascii);
+			arma::Col<double>(enstrophy).save("RK4_rom_enstrophy_" + std::to_string(solver.getDatasetIndex()) + ".txt", arma::raw_ascii);
+			momentum.save("RK4_rom_momentum.txt", arma::raw_ascii);
+#endif
+			return ao;
+		}
+
+
 #ifdef PRINT_TIME
 		std::cout << "time: " << t << std::endl;
 #endif
 	}
 
 #ifdef CALCULATE_ENERGY
-	arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
+	arma::Col<double>(kineticEnergy).save("RK4_rom_kinetic_energy.txt", arma::raw_ascii);
+	arma::Col<double>(enstrophy).save("RK4_rom_enstrophy.txt", arma::raw_ascii);
+	//momentum.save("RK4_rom_momentum.txt", arma::raw_ascii);
+#endif
+
+#ifdef CALCULATE_ROM_ERROR
+
+	arma::Col<double>(errornorms).save("RK4_error_norm.txt", arma::raw_ascii);
+	arma::Col<double>(idealnorms).save("RK4_ideal_norm.txt", arma::raw_ascii);
+
 #endif
 
 	return ao;
@@ -582,12 +758,58 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 #ifdef CALCULATE_ENERGY
 	std::vector<double> kineticEnergy;
+	/*
+	arma::Mat<double> momentum;
+
+	const arma::field<cell>& CellsU = solver.getSolver().getMesh().getCellsU();
+	const arma::field<cell>& CellsV = solver.getSolver().getMesh().getCellsV();
+
+	arma::Col<double> Eu = arma::zeros(solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV());
+	arma::Col<double> Ev = arma::zeros(solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV());
+
+	//setup momentum conserving modes
+	for (arma::uword i = solver.getSolver().getMesh().getStartIndUy(); i < solver.getSolver().getMesh().getEndIndUy(); ++i) {
+		for (arma::uword j = solver.getSolver().getMesh().getStartIndUx(); j < solver.getSolver().getMesh().getEndIndUx(); ++j) {
+			Eu(CellsU(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	for (arma::uword i = solver.getSolver().getMesh().getStartIndVy(); i < solver.getSolver().getMesh().getEndIndVy(); ++i) {
+		for (arma::uword j = solver.getSolver().getMesh().getStartIndVx(); j < solver.getSolver().getMesh().getEndIndVx(); ++j) {
+			Ev(CellsV(i, j).vectorIndex) = 1.0;
+		}
+	}
+
+	arma::Mat<double> E = arma::join_rows(Eu, Ev);
+
+	arma::Mat<double> momMat = E.t() * solver.getSolver().Om() * solver.Psi();
+
+	//momMat.cols(2, momMat.n_cols - 1) = arma::Mat<double>(2, momMat.n_cols - 2, arma::fill::zeros);
+	*/
 #endif
 	//we keep using Velocity type names for unknowns to avoid confusion with runge-kutta 'a' constants
 
 	arma::uword numU = initialA.n_rows;
 
 	arma::Col<double> Vo = initialA;
+
+#ifdef CALCULATE_ENERGY
+	kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * Vo));
+	//momentum = arma::join_rows(momentum, momMat * Vo);
+#endif
+
+#ifdef CALCULATE_ROM_ERROR
+
+	arma::Mat<double> fom_snapshots;
+	fom_snapshots.load("solution_snapshots_slr");
+	std::vector<double> errornorms;
+	std::vector<double> idealnorms;
+	int numm = solver.getSolver().getMesh().getNumU() + solver.getSolver().getMesh().getNumV();
+	arma::uword snapcounter = 0;
+	arma::Col<double> _;
+	arma::Col<double> __;
+
+#endif
 
 	std::vector <arma::Mat<double>> aCols;
 	arma::Mat<double> as(m_tableau.s, m_tableau.s);
@@ -673,7 +895,7 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 				break;
 			}
 
-			//std::cout << "iteration error: " << arma::norm(stagesNext - stagesPrev, 2) << std::endl;
+			std::cout << "iteration error: " << arma::norm(stagesNext - stagesPrev, 2) << std::endl;
 
 			++it;
 
@@ -682,6 +904,12 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 		if (it == 100) {
 			std::cout << "max its exceeded..." << std::endl;
+#ifdef CALCULATE_ROM_ERROR
+
+			arma::Col<double>(errornorms).save("GL4_error_norm.txt", arma::raw_ascii);
+			arma::Col<double>(idealnorms).save("GL4_ideal_norm.txt", arma::raw_ascii);
+
+#endif
 			return Vo;
 			throw std::runtime_error("exceeded max its");
 		}
@@ -695,6 +923,18 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			}
 		}
 
+#ifdef CALCULATE_ROM_ERROR
+
+		errornorms.push_back(arma::norm(arma::sqrt(solver.getSolver().Om())* (solver.Psi()* Vo - fom_snapshots.col(snapcounter))));
+		_ = solver.getSolver().Om() * fom_snapshots.col(snapcounter);
+		__ = solver.Psi().t() * _;
+		_ = solver.Psi() * __;
+		__ = arma::speye(numm, numm) * fom_snapshots.col(snapcounter);
+		idealnorms.push_back(arma::norm(arma::sqrt(solver.getSolver().Om())* (__ - _)));
+		++snapcounter;
+
+#endif
+
 		for (int k = 0; k < m_tableau.s; ++k) {
 			Vo += dt * m_tableau.b[k] * (-solver.Nr(getStage(stagesNext, k + 1)) + nu * solver.Dr() * getStage(stagesNext, k + 1));
 		}
@@ -707,8 +947,16 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
-			arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
+			arma::Col<double>(kineticEnergy).save("GL4_rom_kinetic_energy.txt", arma::raw_ascii);
+			//momentum.save("GL4_rom_momentum.txt", arma::raw_ascii);
 #endif
+#ifdef CALCULATE_ROM_ERROR
+
+			arma::Col<double>(errornorms).save("GL4_error_norm.txt", arma::raw_ascii);
+			arma::Col<double>(idealnorms).save("GL4_ideal_norm.txt", arma::raw_ascii);
+
+#endif
+
 			return Vo;
 		}
 
@@ -716,7 +964,14 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
-			arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
+			arma::Col<double>(kineticEnergy).save("GL4_rom_kinetic_energy.txt", arma::raw_ascii);
+			//momentum.save("GL4_rom_momentum.txt", arma::raw_ascii);
+#endif
+#ifdef CALCULATE_ROM_ERROR
+
+			arma::Col<double>(errornorms).save("GL4_error_norm.txt", arma::raw_ascii);
+			arma::Col<double>(idealnorms).save("GL4_ideal_norm.txt", arma::raw_ascii);
+
 #endif
 			return prevVo;
 		}
@@ -729,12 +984,14 @@ arma::Col<double> ImplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 #ifdef CALCULATE_ENERGY
 		kineticEnergy.push_back(0.5 * arma::as_scalar(Vo.t() * Vo));
+		//momentum = arma::join_rows(momentum, momMat * Vo);
 #endif
 
 	}
 
 #ifdef CALCULATE_ENERGY
-	arma::Col<double>(kineticEnergy).save("rom_kinetic_energy.txt", arma::raw_ascii);
+	arma::Col<double>(kineticEnergy).save("GL4_rom_kinetic_energy.txt", arma::raw_ascii);
+	//momentum.save("GL4_rom_momentum.txt", arma::raw_ascii);
 #endif
 
 	//arma::Mat<double>(S).save("matrix.txt", arma::raw_ascii);

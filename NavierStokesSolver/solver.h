@@ -5,6 +5,10 @@
 #include <armadillo>
 #include <utility>
 #include <complex>
+#include <optional>
+#include <vector>
+
+#include <torch/torch.h>
 
 #include "mesh.h"
 #include "boundary.h"
@@ -54,6 +58,7 @@ private:
 	double m_nu;
 
 public:
+
 	solver(mesh& mesh, B_CONDITION bcUp, B_CONDITION bcRight, B_CONDITION bcLower, B_CONDITION bcLeft, POISSON_SOLVER pSolver, double nu) 
 		:	m_mesh(mesh),
 			m_bcUp(bcUp), m_bcRight(bcRight), m_bcLower(bcLower), m_bcLeft(bcLeft),
@@ -65,7 +70,6 @@ public:
 
 		m_mesh.processBoundary(m_bcUp, m_bcRight, m_bcLower, m_bcLeft);
 
-		//assigning like this can also be done inside the function (saves a copy constructor call. code is written for return value optimization though)
 		m_D			= setupDiffusionMatrix();
 
 		m_M			= setupDivergenceMatrix();
@@ -96,7 +100,10 @@ public:
 
 	double nu() const;
 
-	arma::Col<double> setupTestCase(TESTSUITE);
+	arma::Col<double> vorticity(const arma::Col<double>&) const;
+	arma::Col<double> curlStream(const arma::Col<double>&) const;
+
+	arma::Col<double> setupTestCase(TESTSUITE) const;
 	arma::Col<double> interpolateVelocity(const arma::Col<double>&) const;
 
 	arma::Col<double> poissonSolve(const arma::Col<double>&) const;
@@ -107,11 +114,15 @@ public:
 
 	std::pair<arma::uword, arma::uword> vectorToGridIndex(arma::uword) const;
 
+	torch::Tensor discreteCurl(const torch::Tensor& phi) const;
+
 private:
 	arma::SpMat<double> setupDiffusionMatrix();
 	arma::SpMat<double> setupDivergenceMatrix();
 	std::pair<arma::SpMat<double>, arma::SpMat<double>> setupOmegaMatrices();
 	void setupPressurePoissonMatrix();
+
+	void threadN(arma::Col<double>&, const arma::Col<double>&, arma::uword, arma::uword, arma::uword, arma::uword, arma::uword, arma::uword, arma::uword, arma::uword) const;
 };
 
 //consider doing this for all getters

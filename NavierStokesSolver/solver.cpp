@@ -3,6 +3,8 @@
 #include <cmath>
 #include <complex>
 #include <utility>
+#include <vector>
+#include <fstream>
 
 #include "solver.h"
 
@@ -152,7 +154,7 @@ std::pair<arma::uword, arma::uword> solver::vectorToGridIndex(arma::uword vector
 						std::cout << datum.boundaryDir << std::endl;
 					}
 				}
-				
+
 				return { i, j };
 			}
 				
