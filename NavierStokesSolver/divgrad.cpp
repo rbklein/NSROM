@@ -7,8 +7,6 @@
 #include <cmath>
 #include <algorithm>
 
-#include <torch/torch.h>
-
 #include "mesh.h"
 #include "solver.h"
 #include "boundary.h"
@@ -231,101 +229,6 @@ arma::SpMat<double> solver::setupDivergenceMatrix() {
 	arma::Col<double> vals(values);
 
 	return arma::SpMat<double>(arma::join_cols(M1.t(), M2.t()), vals, m_mesh.getNumCellsX() * m_mesh.getNumCellsY(), m_mesh.getNumU() + m_mesh.getNumV());
-}
-
-
-torch::Tensor solver::discreteCurl(const torch::Tensor& phi) const {
-
-	int64_t numVel = static_cast<int64_t>(m_mesh.getNumU() + m_mesh.getNumV());
-
-	const arma::field<cell>& CellsU = m_mesh.getCellsU();
-	const arma::field<cell>& CellsV = m_mesh.getCellsV();
-	const arma::field<cell>& CellsP = m_mesh.getCellsP();
-
-	torch::Tensor vel;
-
-	if (phi.sizes().size() == 1) {
-		
-		vel = torch::zeros(numVel);
-
-		for (arma::uword i = m_mesh.getStartIndUy(); i < m_mesh.getEndIndUy(); ++i) {
-			for (arma::uword j = m_mesh.getStartIndUx(); j < m_mesh.getEndIndUx(); ++j) {
-
-				auto it = std::find_if(CellsU(i, j).boundaryData.begin(), CellsU(i, j).boundaryData.end(), [](_boundaryData data) {
-					return data.boundaryDir == 'N';
-					});
-
-				if (it == CellsU(i, j).boundaryData.end()) {
-					vel.index_put_({ static_cast<int64_t>(CellsU(i,j).vectorIndex) }, (phi.index({ static_cast<int64_t>(CellsP(i + 1,j).vectorIndex) }) - phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex) })) / CellsU(i, j).dy);
-				}
-				else {
-					vel.index_put_({ static_cast<int64_t>(CellsU(i,j).vectorIndex) }, (phi.index({ static_cast<int64_t>(CellsP(0,j).vectorIndex) }) - phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex) }) ) / CellsU(i, j).dy);
-				}
-
-			}
-		}
-
-		for (arma::uword i = m_mesh.getStartIndVy(); i < m_mesh.getEndIndVy(); ++i) {
-			for (arma::uword j = m_mesh.getStartIndVx(); j < m_mesh.getEndIndVx(); ++j) {
-
-				auto it = std::find_if(CellsV(i, j).boundaryData.begin(), CellsV(i, j).boundaryData.end(), [](_boundaryData data) {
-					return data.boundaryDir == 'E';
-					});
-
-				if (it == CellsV(i, j).boundaryData.end()) {
-					vel.index_put_({ static_cast<int64_t>(CellsV(i,j).vectorIndex) }, (phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex) }) - phi.index({ static_cast<int64_t>(CellsP(i,j + 1).vectorIndex) })) / CellsV(i, j).dx);
-				}
-				else {
-					vel.index_put_({ static_cast<int64_t>(CellsV(i,j).vectorIndex) }, (phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex) }) - phi.index({ static_cast<int64_t>(CellsP(i,0).vectorIndex) })) / CellsV(i, j).dx);
-				}
-
-			}
-		}
-
-	}
-	else if (phi.sizes().size() == 2) {
-
-		vel = torch::zeros({ numVel, phi.size(1) }); 
-
-		for (int64_t k = 0; k < phi.size(1); ++k) {
-			for (arma::uword i = m_mesh.getStartIndUy(); i < m_mesh.getEndIndUy(); ++i) {
-				for (arma::uword j = m_mesh.getStartIndUx(); j < m_mesh.getEndIndUx(); ++j) {
-
-					auto it = std::find_if(CellsU(i, j).boundaryData.begin(), CellsU(i, j).boundaryData.end(), [](_boundaryData data) {
-						return data.boundaryDir == 'N';
-						});
-
-					if (it == CellsU(i, j).boundaryData.end()) {
-						vel.index_put_({ static_cast<int64_t>(CellsU(i,j).vectorIndex), k }, (phi.index({ static_cast<int64_t>(CellsP(i + 1,j).vectorIndex), k }) - phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex), k })) / CellsU(i, j).dy);
-					}
-					else {
-						vel.index_put_({ static_cast<int64_t>(CellsU(i,j).vectorIndex), k }, (phi.index({ static_cast<int64_t>(CellsP(0,j).vectorIndex), k }) - phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex), k })) / CellsU(i, j).dy);
-					}
-
-				}
-			}
-
-			for (arma::uword i = m_mesh.getStartIndVy(); i < m_mesh.getEndIndVy(); ++i) {
-				for (arma::uword j = m_mesh.getStartIndVx(); j < m_mesh.getEndIndVx(); ++j) {
-
-					auto it = std::find_if(CellsV(i, j).boundaryData.begin(), CellsV(i, j).boundaryData.end(), [](_boundaryData data) {
-						return data.boundaryDir == 'E';
-						});
-
-					if (it == CellsV(i, j).boundaryData.end()) {
-						vel.index_put_({ static_cast<int64_t>(CellsV(i,j).vectorIndex), k }, (phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex), k }) - phi.index({ static_cast<int64_t>(CellsP(i,j + 1).vectorIndex), k })) / CellsV(i, j).dx);
-					}
-					else {
-						vel.index_put_({ static_cast<int64_t>(CellsV(i,j).vectorIndex), k }, (phi.index({ static_cast<int64_t>(CellsP(i,j).vectorIndex), k }) - phi.index({ static_cast<int64_t>(CellsP(i,0).vectorIndex), k })) / CellsV(i, j).dx);
-					}
-
-				}
-			}
-		}
-
-	}
-
-	return vel;
 }
 
 

@@ -64,7 +64,6 @@ void solver::setupPressurePoissonMatrix() {
 		for (arma::uword i = 0; i < m_mesh.getNumCellsY(); ++i) {
 			for (arma::uword j = 0; j < m_mesh.getNumCellsX(); ++j) {
 
-				//column major ordering: this will be slow (but executed once)
 				m_Lhat(i, j) = (CellsP(i, j).dx * CellsP(i, j).dy) * -4.0 * ((1.0 / (CellsP(i, j).dx * CellsP(i, j).dx)) * sin(i * PI / m_mesh.getNumCellsX()) * sin(i * PI / m_mesh.getNumCellsX()) +
 					(1.0 / (CellsP(i, j).dy * CellsP(i, j).dy)) * sin(j * PI / m_mesh.getNumCellsY()) * sin(j * PI / m_mesh.getNumCellsY())) + 0.0i; 
 

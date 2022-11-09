@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <armadillo>
-#include <torch/torch.h>
 #include <vector>
 
 //make a freeData() member function to save memory during run-time
@@ -23,12 +22,35 @@ public:
 	void addOperatorColumn(const arma::Col<double>&);
 	const arma::Mat<double>& getOperatorMatrix() const;
 
+	//load data from files...
+	//create new dataCollector with a part of the data...
+
+	dataCollector<COLLECT_DATA_FLAG> split(int, int) const;
+	void loadDataMatrix(const std::string&);
+	void loadOperatorMatrix(const std::string&);
+
+	void appendDataLeft(const arma::Mat<double>&);
+	void appendDataRight(const arma::Mat<double>&);
+	void appendOperatorLeft(const arma::Mat<double>&);
+	void appendOperatorRight(const arma::Mat<double>&);
+
 	void clearData();
 	void clearOperatorData();
 
-	torch::Tensor toTensor(const arma::Mat<double>&, const torch::Device&) const;
-
 };
+
+
+template<bool COLLECT_DATA>
+dataCollector<COLLECT_DATA> dataCollector<COLLECT_DATA>::split(int index1, int index2) const {
+
+	dataCollector<COLLECT_DATA> res;
+
+	res.m_dataMatrix = m_dataMatrix.cols(index1, index2);
+	res.m_operatorMatrix = m_operatorMatrix.cols(index1, index2);
+
+	//move?
+	return res;
+}
 
 template<bool COLLECT_DATA>
 void dataCollector<COLLECT_DATA>::clearData() {
@@ -38,34 +60,6 @@ void dataCollector<COLLECT_DATA>::clearData() {
 template<bool COLLECT_DATA>
 void dataCollector<COLLECT_DATA>::clearOperatorData() {
 	m_operatorMatrix.clear();
-}
-
-template<bool COLLECT_DATA> 
-torch::Tensor dataCollector<COLLECT_DATA>::toTensor(const arma::Mat<double>& data, const torch::Device& device) const {
-
-	torch::Tensor out;
-
-	if (data.n_cols != 1) {
-		std::vector<int64_t> dims = { static_cast<int64_t>(data.n_rows), static_cast<int64_t>(data.n_cols) };
-		out = torch::zeros(dims, device);
-
-		for (int i = 0; i < data.n_rows; ++i) {
-			for (int j = 0; j < data.n_cols; ++j) {
-				out.index_put_({ static_cast<int64_t>(i), static_cast<int64_t>(j) }, data(i, j));
-			}
-		}
-	}
-	else {
-		std::vector<int64_t> dims = { static_cast<int64_t>(data.n_rows) };
-		out = torch::zeros(dims, device);
-
-		for (int i = 0; i < data.n_rows; ++i) {
-			out.index_put_({ static_cast<int64_t>(i) }, data(i, 0));
-		}
-	}
-
-
-	return out;
 }
 
 
@@ -95,6 +89,40 @@ const arma::Mat<double>& dataCollector<COLLECT_DATA>::getOperatorMatrix() const 
 
 	return m_operatorMatrix;
 
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::loadDataMatrix(const std::string& name) {
+
+	m_dataMatrix.load(name, arma::arma_binary);
+
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::loadOperatorMatrix(const std::string& name) {
+
+	m_operatorMatrix.load(name, arma::arma_binary);
+
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::appendDataLeft(const arma::Mat<double>& data) {
+	m_dataMatrix.insert_cols(0, data);
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::appendDataRight(const arma::Mat<double>& data) {
+	m_dataMatrix.insert_cols(m_dataMatrix.n_cols, data);
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::appendOperatorLeft(const arma::Mat<double>& data) {
+	m_operatorMatrix.insert_cols(0, data);
+}
+
+template<bool COLLECT_DATA>
+void dataCollector<COLLECT_DATA>::appendOperatorRight(const arma::Mat<double>& data) {
+	m_operatorMatrix.insert_cols(m_operatorMatrix.n_cols, data);
 }
 
 

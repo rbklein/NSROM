@@ -2,6 +2,7 @@
 #include <armadillo>
 #include <vector>
 #include <algorithm>
+#include <complex>
 
 #include "mesh.h"
 #include "solver.h"
@@ -393,3 +394,77 @@ arma::SpMat<double> solver::setupDiffusionMatrix() {
 	return arma::SpMat<double>(arma::join_cols(M1.t(), M2.t()), vals, m_mesh.getNumU() + m_mesh.getNumV(), m_mesh.getNumU() + m_mesh.getNumV());
 }
 
+constexpr double PI = 3.14159265358979323846;
+
+
+arma::Mat<std::complex<double>> solver::setupSpectralDiffusionOperator() {
+	
+	arma::Mat<std::complex<double>> apq((m_mesh.getNumCellsY() + 1) / 2, (m_mesh.getNumCellsX() + 1) / 2);
+
+	std::complex<double> p, q;
+
+	double dx, dy;
+	dx = dy = m_mesh.getCellsU()(1, 1).dx;
+
+	//precompute...
+	for (int i = 0; i < (m_mesh.getNumCellsY() + 1) / 2; ++i) {
+		for (int j = 0; j < (m_mesh.getNumCellsX() + 1) / 2; ++j) {
+
+			p = (2.0 * PI / m_mesh.getLengthX()) * j;
+			q = (2.0 * PI / m_mesh.getLengthY()) * i;
+
+			if (i != 0 && j != 0) {
+				apq(i, j) = -4.0 * std::sin(p * dx / 2.0) * std::sin(q * dy / 2.0) * (p * p + q * q) / (p * q);
+			}
+			else if (j == 0 && i != 0) {
+
+				apq(i, j) = -2.0 * q * dx * std::sin(q * dy / 2.0);
+
+			}
+			else if (j != 0 && i == 0) {
+
+				apq(i, j) = -2.0 * p * dy * std::sin(p * dx / 2.0);
+
+			}
+			else if (j == 0 && i == 0) {
+
+				apq(i, j) = 0.0;
+
+			}
+
+		}
+	}
+
+	arma::Mat<std::complex<double>> apqlr = arma::fliplr(apq.cols(1, apq.n_cols - 1));
+	arma::Mat<std::complex<double>> apqlrud = arma::flipud(apqlr.rows(1, apqlr.n_rows - 1));
+	arma::Mat<std::complex<double>> apqud = arma::flipud(apq.rows(1, apqlr.n_rows - 1));
+
+	arma::Mat<std::complex<double>> Bpq = arma::join_rows(apq, apqlr);
+	arma::Mat<std::complex<double>> Cpq = arma::join_rows(apqud, apqlrud);
+
+	arma::Mat<std::complex<double>> Apq = arma::join_cols(Bpq, Cpq);
+
+	return Apq;
+}
+
+
+arma::Col<double> solver::spectralDiffusion(const arma::Col<double>& u) const {
+
+	arma::Col<double> diffusion(u.size());
+
+	using namespace std::complex_literals;
+
+	arma::Col<double> velU = u.rows(0, m_mesh.getNumU() - 1);
+	arma::Col<double> velV = u.rows(m_mesh.getNumU(), m_mesh.getNumV() + m_mesh.getNumU() - 1);
+
+	arma::Mat<double> U = arma::reshape(velU, m_mesh.getNumCellsY(), m_mesh.getNumCellsX()).t();
+	arma::Mat<double> V = arma::reshape(velV, m_mesh.getNumCellsY(), m_mesh.getNumCellsX()).t();
+
+	arma::Mat<std::complex<double>> Uhat = arma::fft2(U) % m_Apq;
+	arma::Mat<std::complex<double>> Vhat = arma::fft2(V) % m_Apq;
+
+	diffusion.rows(0, m_mesh.getNumU() - 1) = arma::real(arma::ifft2(Uhat)).t().as_col();
+	diffusion.rows(m_mesh.getNumU(), m_mesh.getNumV() + m_mesh.getNumU() - 1) = arma::real(arma::ifft2(Vhat)).t().as_col();
+
+	return diffusion;
+}

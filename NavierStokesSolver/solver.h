@@ -8,8 +8,6 @@
 #include <optional>
 #include <vector>
 
-#include <torch/torch.h>
-
 #include "mesh.h"
 #include "boundary.h"
 #include "testsuite.h"
@@ -38,6 +36,7 @@ private:
 
 	//diffusion matrix
 	arma::SpMat<double> m_D;
+	arma::Mat<std::complex<double>> m_Apq;
 
 	//divergence matrix
 	arma::SpMat<double> m_M;
@@ -84,6 +83,8 @@ public:
 
 		setupPressurePoissonMatrix();
 
+		m_Apq		= setupSpectralDiffusionOperator();
+
 	}
 
 	arma::Col<double>		   N(const arma::Col<double>&) const;
@@ -106,6 +107,8 @@ public:
 	arma::Col<double> setupTestCase(TESTSUITE) const;
 	arma::Col<double> interpolateVelocity(const arma::Col<double>&) const;
 
+	arma::Col<double> spectralDiffusion(const arma::Col<double>&) const;
+
 	arma::Col<double> poissonSolve(const arma::Col<double>&) const;
 
 	POISSON_SOLVER getSolverType() const;
@@ -114,10 +117,11 @@ public:
 
 	std::pair<arma::uword, arma::uword> vectorToGridIndex(arma::uword) const;
 
-	torch::Tensor discreteCurl(const torch::Tensor& phi) const;
-
 private:
 	arma::SpMat<double> setupDiffusionMatrix();
+
+	arma::Mat<std::complex<double>> setupSpectralDiffusionOperator();
+
 	arma::SpMat<double> setupDivergenceMatrix();
 	std::pair<arma::SpMat<double>, arma::SpMat<double>> setupOmegaMatrices();
 	void setupPressurePoissonMatrix();

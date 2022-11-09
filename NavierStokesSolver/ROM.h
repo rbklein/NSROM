@@ -7,6 +7,7 @@
 #include "solver.h"
 #include "data.h"
 
+
 enum class HYPER_REDUCTION_METHOD {
 	NONE,
 	EXACT_TENSOR_DECOMPOSITION,
@@ -111,6 +112,7 @@ public:
 		m_datasetIndex(dataset)
 	{
 		setupMeasurementSpace();
+
 	}
 
 	virtual arma::Col<double> Nrh(const arma::Col<double>& a, const ROM_Solver& rom_solver) const override;
@@ -126,9 +128,6 @@ private:
 	void setupMeasurementSpace();
 
 };
-
-
-
 
 
 //Structure-Preserving Discrete Empirical Interpolation Method
@@ -317,15 +316,10 @@ public:
 	{
 		setupBasis();
 
-		auto t1 = std::chrono::high_resolution_clock::now();
-
 		m_hyperReduction.initialize(*this);
 
-		auto t2 = std::chrono::high_resolution_clock::now();
-
-		std::cout << "Precomputing (2) Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms" << std::endl;
-
 		precomputeOperators();
+
 	}
 
 	arma::Col<double> calculateIC(const arma::Col<double>&) const;
@@ -338,6 +332,8 @@ public:
 
 	double Nindex(const arma::Col<double>&, arma::uword, arma::uword, arma::uword) const;
 	arma::Row<double> Jindex(const arma::Col<double>&, arma::uword, arma::uword, arma::uword) const;
+
+	const Base_hyperReduction& getHyperReduction() const;
 
 	double nu() const;
 
@@ -354,13 +350,5 @@ private:
 	void precomputeOperators();
 
 };
-
-
-
-
-
-
-
-
 
 #endif

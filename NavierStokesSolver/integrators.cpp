@@ -10,10 +10,12 @@
 #include "integrators.h"
 #include "iterative.h"
 
-#define CALCULATE_ENERGY
+//#define CALCULATE_ENERGY
 #define PRINT_TIME
 
 //#define CALCULATE_ROM_ERROR
+
+//#define USE_SPECTRAL
 
 template<bool COLLECT_DATA>
 arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, double dt, const arma::Col<double>& initialVel, const arma::Col<double>& initialP, const solver& solver, double collectTime) {
@@ -49,7 +51,15 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 
 			V = Vo;
 
+#ifndef USE_SPECTRAL 
+
 			Fs.push_back(solver.OmInv() * (-solver.N(Us[i]) + nuD * Us[i]));
+
+#else
+
+			Fs.push_back(solver.OmInv() * (-solver.N(Us[i]) + nu * solver.spectralDiffusion(Us[i]) ));
+
+#endif
 
 			for (int j = 0; j < (i + 1); ++j) {
 
@@ -95,7 +105,6 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		}
 
 		if (abs(finalT - t) < (0.01 * dt)) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
@@ -104,7 +113,6 @@ arma::Col<double> ExplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		}
 
 		if (t > finalT) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
@@ -350,7 +358,6 @@ arma::Col<double> ImplicitRungeKutta_NS<COLLECT_DATA>::integrate(double finalT, 
 		t = t + dt;
 
 		if (abs(finalT - t) < (0.01 * dt)) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
@@ -492,7 +499,6 @@ arma::Col<double> RelaxationRungeKutta_NS<COLLECT_DATA>::integrate(double finalT
 		t = t + dt;
 
 		if (abs(finalT - t) < (0.01 * dt)) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
@@ -501,7 +507,6 @@ arma::Col<double> RelaxationRungeKutta_NS<COLLECT_DATA>::integrate(double finalT
 		}
 
 		if (t > finalT) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ENERGY
 			arma::Col<double>(kineticEnergy).save("fom_kinetic_energy.txt", arma::raw_ascii);
@@ -643,7 +648,15 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 
 			a = ao;
 
+			//std::cout << "trying" << std::endl;
+
+			//std::cout << solver.Nr(as[i]) << std::endl;
+
+			//std::cout << "trying second" << std::endl;
+
 			Fs.push_back((- solver.Nr(as[i]) + nu * solver.Dr() * as[i]));
+
+			//std::cout << "done trying" << std::endl;
 
 			for (int j = 0; j < (i + 1); ++j) {
 
@@ -660,7 +673,8 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 		if constexpr (Base_ROM_Integrator<COLLECT_DATA>::m_collector.COLLECT_DATA) {
 			if (t <= collectTime) {
 				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addColumn(ao);
-				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.getSolver().N(solver.Psi() * ao));
+				Base_ROM_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.getHyperReduction().N(ao, solver));
+				//Base_ROM_Integrator<COLLECT_DATA>::m_collector.addOperatorColumn(solver.getSolver().N(solver.Psi() * ao));
 			}
 		}
 
@@ -692,7 +706,6 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 		t = t + dt;
 
 		if (abs(finalT - t) < (0.01 * dt)) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ROM_ERROR
 
@@ -709,7 +722,6 @@ arma::Col<double> ExplicitRungeKutta_ROM<COLLECT_DATA>::integrate(double finalT,
 		}
 
 		if (t > finalT) {
-			std::cout.precision(17);
 			std::cout << t << std::endl;
 #ifdef CALCULATE_ROM_ERROR
 

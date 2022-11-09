@@ -65,9 +65,6 @@ void ROM_Solver::setupBasis() {
 	//perform svd of scaled snapshots
 	arma::svd_econ(PsiFull, singularValues, _, scaledSnapshotData, "left");
 
-	if (m_savePhi)
-		PsiFull.save("PsiFull.bin", arma::arma_binary);
-
 	singularValues.save("pod_sing_vals.txt", arma::raw_ascii);
 
 	m_RIC = arma::sum(singularValues.rows(0, m_numModesPOD - 3)) / arma::sum(singularValues);
@@ -82,7 +79,13 @@ void ROM_Solver::setupBasis() {
 	//add momentum conserving modes
 	m_Psi.insert_cols(0, E);
 
-	//std::cout << (m_solver.M() * m_Psi).max() << " " << (m_solver.M() * m_Psi).min() << std::endl;
+	if (m_savePhi) {
+
+		PsiFull = arma::sqrt(m_solver.OmInv()) * PsiFull;
+		PsiFull.insert_cols(0, E);
+		PsiFull.save("PsiFull.bin", arma::arma_binary);
+
+	}
 
 #else
 
@@ -92,43 +95,11 @@ void ROM_Solver::setupBasis() {
 	arma::Col<double> singularValues;
 	singularValues.load("pod_sing_vals.txt", arma::raw_ascii);
 
-	const arma::field<cell>& CellsU = m_solver.getMesh().getCellsU();
-	const arma::field<cell>& CellsV = m_solver.getMesh().getCellsV();
-
-	arma::Col<double> Eu = arma::zeros(m_solver.getMesh().getNumU() + m_solver.getMesh().getNumV());
-	arma::Col<double> Ev = arma::zeros(m_solver.getMesh().getNumU() + m_solver.getMesh().getNumV());
-
-	//setup momentum conserving modes
-	for (arma::uword i = m_solver.getMesh().getStartIndUy(); i < m_solver.getMesh().getEndIndUy(); ++i) {
-		for (arma::uword j = m_solver.getMesh().getStartIndUx(); j < m_solver.getMesh().getEndIndUx(); ++j) {
-			Eu(CellsU(i, j).vectorIndex) = 1.0;
-		}
-	}
-
-	for (arma::uword i = m_solver.getMesh().getStartIndVy(); i < m_solver.getMesh().getEndIndVy(); ++i) {
-		for (arma::uword j = m_solver.getMesh().getStartIndVx(); j < m_solver.getMesh().getEndIndVx(); ++j) {
-			Ev(CellsV(i, j).vectorIndex) = 1.0;
-		}
-	}
-
-	//normalize momentum conserving modes in omega-norm
-	Eu = (1.0 / sqrt(arma::as_scalar(Eu.t() * m_solver.Om() * Eu))) * Eu;
-	Ev = (1.0 / sqrt(arma::as_scalar(Ev.t() * m_solver.Om() * Ev))) * Ev;
-
-	arma::Mat<double> E = arma::join_rows(Eu, Ev);
-
 	m_RIC = arma::sum(singularValues.rows(0, m_numModesPOD - 3)) / arma::sum(singularValues);
 
 	std::cout << "POD RIC: " << m_RIC * 100.0 << "% " << std::endl;
 
-	//ensures omega-orthogonality
-	for (arma::uword i = 0; i < (m_numModesPOD - 2); ++i) {
-		m_Psi.insert_cols(m_Psi.n_cols, arma::sqrt(m_solver.OmInv()) * PsiFull.col(i));
-	}
-
-	//add momentum conserving modes
-	m_Psi.insert_cols(0, E);
-
+	m_Psi = PsiFull.cols(0, m_numModesPOD - 1);
 
 
 #endif
@@ -171,17 +142,6 @@ const solver& ROM_Solver::getSolver() const {
 	return m_solver;
 }
 
-/*
-arma::Col<double> mode;
-	arma::Col<double> vort_mode;
-	arma::Col<double> interp_mode;
-
-	for (int i = 2; i < 7; ++i) {
-		mode = m_Psi.col(i);
-		vort_mode = getSolver().vorticity(mode);
-		interp_mode = getSolver().interpolateVelocity(mode);
-
-		vort_mode.save("vorticity_mode_" + std::to_string(i) + ".txt", arma::raw_ascii);
-		interp_mode.save("velocity_mode_" + std::to_string(i) + ".txt", arma::raw_ascii);
-	}
-*/
+const Base_hyperReduction& ROM_Solver::getHyperReduction() const {
+	return m_hyperReduction;
+}
